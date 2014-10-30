@@ -133,6 +133,15 @@ options:
         - Opaque blob of data which is made available to the instance
      required: false
      default: None
+   root_volume:
+     description:
+        - Boot instance from a volume id
+     required: false
+     default: None
+     terminate_volume:
+     description:
+        - If true, delete volume when deleting instance (if booted from volume)
+     default: false
 requirements: ["shade"]
 '''
 
@@ -273,7 +282,12 @@ def _create_server(module, cloud):
                 'userdata': module.params['userdata'],
                 'config_drive': module.params['config_drive'],
     }
-
+    if module.params['root_volume']:
+        if module.params['terminate_volume']:
+            suffix = ':::1'
+        else:
+            suffix = ':::0'
+        bootkwargs['block_device_mapping'] = {'vda' : module.params['root_volume'] + suffix}
     for optional_param in ('region_name', 'key_name', 'availability_zone'):
         if module.params[optional_param]:
             bootkwargs[optional_param] = module.params[optional_param]
@@ -362,6 +376,8 @@ def main():
         auto_floating_ip                = dict(default=True, type='bool'),
         floating_ips                    = dict(default=None),
         floating_ip_pools               = dict(default=None),
+        root_volume                     = dict(default=None),
+        terminate_volume                = dict(default=False, type='bool'),
     )
     module_kwargs = openstack_module_kwargs(
         mutually_exclusive=[
