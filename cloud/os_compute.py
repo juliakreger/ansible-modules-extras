@@ -52,27 +52,22 @@ options:
         - Name that has to be given to the instance
      required: true
      default: None
-   image_id:
+   image:
      description:
-        - The id of the base image to boot. Mutually exclusive with image_name
-     required: true
-     default: None
-   image_name:
-     description:
-        - The name of the base image to boot. Mutually exclusive with image_id
+        - The name or id of the base image to boot.
      required: true
      default: None
    image_exclude:
      description:
         - Text to use to filter image names, for the case, such as HP, where there are multiple image names matching the common identifying portions. image_exclude is a negative match filter - it is text that may not exist in the image name. Defaults to "(deprecated)"
-   flavor_id:
+   flavor:
      description:
-        - The id of the flavor in which the new instance has to be created. Mutually exclusive with flavor_ram
+        - The name or id of the flavor in which the new instance has to be created. Mutually exclusive with flavor_ram
      required: false
      default: 1
    flavor_ram:
      description:
-        - The minimum amount of ram in MB that the flavor in which the new instance has to be created must have. Mutually exclusive with flavor_id
+        - The minimum amount of ram in MB that the flavor in which the new instance has to be created must have. Mutually exclusive with flavor
      required: false
      default: 1
    flavor_include:
@@ -135,7 +130,7 @@ options:
      default: None
    root_volume:
      description:
-        - Boot instance from a volume id
+        - Boot instance from a volume
      required: false
      default: None
      terminate_volume:
@@ -153,10 +148,10 @@ EXAMPLES = '''
        password: admin
        project_name: admin
        name: vm1
-       image_id: 4f905f38-e52a-43d2-b6ec-754a13ffb529
+       image: 4f905f38-e52a-43d2-b6ec-754a13ffb529
        key_name: ansible_key
        timeout: 200
-       flavor_id: 4
+       flavor: 4
        nics:
          - net-id: 34605f38-e52a-25d2-b6ec-754a13ffb723
        meta:
@@ -177,10 +172,10 @@ EXAMPLES = '''
       auth_url: https://region-b.geo-1.identity.hpcloudsvc.com:35357/v2.0/
       region_name: region-b.geo-1
       availability_zone: az2
-      image_id: 9302692b-b787-4b52-a3a6-daebb79cb498
+      image: 9302692b-b787-4b52-a3a6-daebb79cb498
       key_name: test
       timeout: 200
-      flavor_id: 101
+      flavor: 101
       security_groups: default
       auto_floating_ip: yes
 
@@ -198,10 +193,10 @@ EXAMPLES = '''
       auth_url: https://region-b.geo-1.identity.hpcloudsvc.com:35357/v2.0/
       region_name: region-b.geo-1
       availability_zone: az2
-      image_id: 9302692b-b787-4b52-a3a6-daebb79cb498
+      image: 9302692b-b787-4b52-a3a6-daebb79cb498
       key_name: test
       timeout: 200
-      flavor_id: 101
+      flavor: 101
       floating-ips:
         - 12.34.56.79
 
@@ -218,7 +213,7 @@ EXAMPLES = '''
       project_name: username-project1
       auth_url: https://region-b.geo-1.identity.hpcloudsvc.com:35357/v2.0/
       region_name: region-b.geo-1
-      image_name: Ubuntu Server 14.04
+      image: Ubuntu Server 14.04
       image_exclude: deprecated
       flavor_ram: 4096
 
@@ -235,7 +230,7 @@ EXAMPLES = '''
       project_name: username-project1
       auth_url: https://identity.api.rackspacecloud.com/v2.0/
       region_name: DFW
-      image_name: Ubuntu 14.04 LTS (Trusty Tahr) (PVHVM)
+      image: Ubuntu 14.04 LTS (Trusty Tahr) (PVHVM)
       flavor_ram: 4096
       flavor_include: Performance
 '''
@@ -256,23 +251,13 @@ def _delete_server(module, cloud):
     module.exit_json(changed=True, result='deleted')
 
 
-def _get_image_id(module, cloud):
-    if module.params['image_id']:
-        return module.params['image_id']
-    return cloud.get_image_by_name(
-        module.params['image_name'], module.params['image_exclude']).id
-
-
-def _get_flavor_id(module, cloud):
-    if module.params['flavor_id']:
-        return module.params['flavor_id']
-    return cloud.get_flavor_by_ram(
-        module.params['flavor_ram'], module.params['flavor_include']).id
-
-
 def _create_server(module, cloud):
-    image_id = _get_image_id(module, cloud)
-    flavor_id = _get_flavor_id(module, cloud)
+    image_id = cloud.get_image_id(
+        module.params['image'], module.params['image_exclude'])
+    flavor_id = cloud.get_flavor_id(
+        name_or_id=module.params['flavor'],
+        ram=module.params['flavor_ram'],
+        include=module.params['flavor_include'])
 
     bootargs = [module.params['name'], image_id, flavor_id]
     bootkwargs = {
@@ -282,12 +267,6 @@ def _create_server(module, cloud):
                 'userdata': module.params['userdata'],
                 'config_drive': module.params['config_drive'],
     }
-    if module.params['root_volume']:
-        if module.params['terminate_volume']:
-            suffix = ':::1'
-        else:
-            suffix = ':::0'
-        bootkwargs['block_device_mapping'] = {'vda' : module.params['root_volume'] + suffix}
     for optional_param in ('region_name', 'key_name', 'availability_zone'):
         if module.params[optional_param]:
             bootkwargs[optional_param] = module.params[optional_param]
@@ -297,6 +276,8 @@ def _create_server(module, cloud):
         ip_pool=module.params['floating_ip_pools'],
         ips=module.params['floating_ips'],
         auto_ip=module.params['auto_floating_ip'],
+        root_volume=module.params['root_volume'],
+        terminate_volume=module.params['terminate_volume'],
         wait=module.params['wait'], timeout=module.params['timeout'])
 
     _exit_hostvars(module, cloud, server)
@@ -361,10 +342,9 @@ def main():
 
     argument_spec = openstack_full_argument_spec(
         name                            = dict(required=True),
-        image_id                        = dict(default=None),
-        image_name                      = dict(default=None),
+        image                           = dict(default=None),
         image_exclude                   = dict(default='(deprecated)'),
-        flavor_id                       = dict(default=None),
+        flavor                          = dict(default=None),
         flavor_ram                      = dict(default=None, type='int'),
         flavor_include                  = dict(default=None),
         key_name                        = dict(default=None),
@@ -384,8 +364,7 @@ def main():
             ['auto_floating_ip','floating_ips'],
             ['auto_floating_ip','floating_ip_pools'],
             ['floating_ips','floating_ip_pools'],
-            ['image_id','image_name'],
-            ['flavor_id','flavor_ram'],
+            ['flavor','flavor_ram'],
         ],
     )
     module = AnsibleModule(argument_spec, **module_kwargs)
@@ -394,11 +373,10 @@ def main():
         cloud = shade.openstack_cloud(**module.params)
 
         if module.params['state'] == 'present':
-            if not module.params['image_id'] and not module.params['image_name']:
-                module.fail_json( msg = "Parameter 'image_id' or `image_name` is required if state == 'present'")
-            else:
-                _get_server_state(module, cloud)
-                _create_server(module, cloud)
+            if not module.params['image']:
+                module.fail_json(msg="Parameter 'image' is required if state == 'present'")
+            _get_server_state(module, cloud)
+            _create_server(module, cloud)
         if module.params['state'] == 'absent':
             _get_server_state(module, cloud)
             _delete_server(module, cloud)
