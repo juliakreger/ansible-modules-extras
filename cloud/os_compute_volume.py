@@ -38,26 +38,14 @@ options:
         - Indicate desired state of the resource
      choices: ['present', 'absent']
      default: present
-   server_name:
+   server:
      description:
-       - Name of server you want to attach a volume to
-     required: false
-     default: None
-   server_id:
+       - Name or id of server you want to attach a volume to
+     required: true
+   volume:
      description:
-       - ID of server you want to attach a volume to
-     required: false
-     default: None
-   volume_name:
-     description:
-      - Name of volume you want to attach to a server
-     required: false
-     default: None
-   volume_id:
-     descripiton:
-      - ID of volume you want to attach to a server
-     required: false
-     default: None
+      - Name or id of volume you want to attach to a server
+     required: true
    device:
      description:
       - Device you want to attach
@@ -79,15 +67,15 @@ EXAMPLES = '''
       project_name: admin
       auth_url: https://region-b.geo-1.identity.hpcloudsvc.com:35357/v2.0/
       region_name: region-b.geo-1
-      server_name: Mysql-server
-      volume_name: mysql-data
+      server: Mysql-server
+      volume: mysql-data
       device: /dev/vdb
 '''
 
-def _wait_for_detach(cinder, module):
+def _wait_for_detach(cloud, module):
     expires = float(module.params['timeout']) + time.time()
     while time.time() < expires:
-        volume = cinder.volumes.get(module.params['volume_id'])
+        volume = cloud.get_volume(module.params['volume'], cache=False)
         if volume.status == 'available':
             break
     return volume
@@ -107,25 +95,19 @@ def _check_device_attachment(volume, device, server_id):
     return False
 
 
-def _present_volume(cloud, nova, cinder, module):
-    try:
-        volume = cinder.volumes.get(module.params['volume_id'])
-    except Exception as e:
-        module.fail_json(msg='Error getting volume:%s' % str(e))
+def _present_volume(cloud, nova, module, server, volume):
 
     try:
-        if _check_server_attachments(volume, module.params['server_id']):
+        if _check_server_attachments(volume, server.id)
             # Attached. Now, do we care about device?
             if (module.params['device'] and
                 not _check_device_attachment(
                     volume, modules.params['device'],
-                    module.params['server_id'])):
-                nova.volumes.delete_server_volume(
-                    module.params['server_id'],
-                    module.params['volume_id'])
-                volume = _wait_for_detach(cinder, module)
+                    server.id)):
+                nova.volumes.delete_server_volume(server.id, volume.id)
+                volume = _wait_for_detach(cloud, module)
             else:
-                server = cloud.get_server_by_id(module.params['server_id'])
+                server = cloud.get_server_by_id(server.id)
                 hostvars = meta.get_hostvars_from_server(cloud, server)
                 module.exit_json(
                     changed=False,
@@ -138,7 +120,7 @@ def _present_volume(cloud, nova, cinder, module):
         module.fail_json(msg='Cannot attach volume, not available')
     try:
         nova.volumes.create_server_volume(module.params['server_id'],
-                                          module.params['volume_id'],
+                                          volume.id,
                                           module.params['device'])
     except Exception as e:
         module.fail_json(msg='Cannot add volume to server:%s' % str(n))
@@ -147,7 +129,7 @@ def _present_volume(cloud, nova, cinder, module):
         expires = float(module.params['timeout']) + time.time()
         attachment = None
         while time.time() < expires:
-            volume = cinder.volumes.get(module.params['volume_id'])
+            volume = cloud.get_volume(volume.id, cache=False)
             for attach in volume.attachments:
                 if attach['server_id'] == module.params['server_id']:
                     attachment = attach
@@ -165,20 +147,15 @@ def _present_volume(cloud, nova, cinder, module):
             volume=volume.display_name, server=module.params['server_id']))
 
 
-def _absent_volume(nova, cinder, module):
-    try:
-        volume = cinder.volumes.get(module.params['volume_id'])
-    except Exception as e:
-        module.fail_json(msg='Error getting volume:%s' % str(e))
+def _absent_volume(cloud, nova, module, server, volume):
 
-    if not _check_server_attachments(volume, module.params['server_id']):
+    if not _check_server_attachments(volume, server.id):
         module.exit_json(changed=False, msg='Volume is not attached to server')
 
     try:
-        nova.volumes.delete_server_volume(module.params['server_id'],
-                                          module.params['volume_id'])
+        nova.volumes.delete_server_volume(server.id, volume.id)
         if module.params['wait']:
-            _wait_for_detach(cinder, module)
+            _wait_for_detach(cloud, module)
     except Exception as e:
         module.fail_json(msg='Error removing volume from server:%s' % str(e))
     module.exit_json(changed=True, result='Detached volume from server')
@@ -186,42 +163,25 @@ def _absent_volume(nova, cinder, module):
 
 def main():
     argument_spec = openstack_full_argument_spec(
-        server_id=dict(default=None),
-        server_name=dict(default=None),
-        volume_id=dict(default=None),
-        volume_name=dict(default=None),
+        server=dict(required=True),
+        volume=dict(required=True),
         device=dict(default=None),
     )
-    module_kwargs = openstack_module_kwargs(
-        mutually_exclusive=[
-            ['server_id', 'server_name'],
-            ['volume_id', 'volume_name'],
-        ],
-        required_one_of=[
-            ['server_id', 'server_name'],
-            ['volume_id','volume_name'],
-        ],
-    )
+    module_kwargs = openstack_module_kwargs()
 
     module = AnsibleModule(argument_spec, **module_kwargs)
 
     try:
         cloud = shade.openstack_cloud(**module.params)
-        cinder = cloud.cinder_client
         nova = cloud.nova_client
 
-        if module.params['volume_name'] != None:
-            module.params['volume_id'] = cloud.get_volume_id(
-                module.params['volume_name'])
-
-        if module.params['server_name'] != None:
-            module.params['server_id'] = cloud.get_server_id(
-                module.params['server_name'])
+        server = cloud.get_server(module.params['server'])
+        volume = cloud.get_volume(module.params['volume'])
 
         if module.params['state'] == 'present':
-            _present_volume(cloud, nova, cinder, module)
+            _present_volume(cloud, nova, module, server, volume)
         if module.params['state'] == 'absent':
-            _absent_volume(nova, cinder, module)
+            _absent_volume(cloud, nova, module, server, volume)
 
     except shade.OpenStackCloudException as e:
         module.fail_json(msg=e.message)

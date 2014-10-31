@@ -58,14 +58,9 @@ options:
        - Volume type for volume
      required: false
      default: None
-   image_id:
+   image:
      descritpion:
-       - Image id for boot from volume 
-     required: false
-     default: None
-   image_name:
-     descritpion:
-       - Image name for boot from volume 
+       - Image name or id for boot from volume
      required: false
      default: None
    snapshot_id:
@@ -95,61 +90,36 @@ EXAMPLES = '''
 '''
 
 def _present_volume(module, cinder, cloud):
-    for v in cinder.volumes.list():
-        if v.display_name == module.params['display_name']:
-            module.exit_json(changed=False, id=v.id, info=v._info)
-    image_id = module.params['image_id']
-    if module.params['image_name']:
-        image_id = cloud.get_image_id(module.params['image_name'])
+    if cloud.volume_exists(module.param['display_name']):
+        v = cloud.get_volume(module.param['display_name'])
+        module.exit_json(changed=False, id=v.id, info=v._info)
+
     volume_args = dict(
         size=module.params['size'],
         volume_type=module.params['volume_type'],
         display_name=module.params['display_name'],
         display_description=module.params['display_description'],
-        imageRef=image_id,
         snapshot_id=module.params['snapshot_id'],
         availability_zone=module.params['availability_zone'],
     )
+    if module.params['image']:
+        image_id = cloud.get_image_id(module.params['image'])
+        volume_args['imageRef'] = image_id
+
+    volume = cloud.volume_create(
+        volume_args, wait=module.params['wait'],
+        timeout=module.params['timeout'])
+    module.exit_json(changed=True, id=volume.id, info=volume._info)
+
+
+def _absent_volume(module, cloud):
+
     try:
-        vol = cinder.volumes.create(**volume_args)
-    except Exception as e:
-        module.fail_json(msg='Error creating volume:%s' % str(e))
-
-    if module.params['wait']:
-        expires = module.params['timeout'] + time.time()
-        while time.time() < expires:
-            volume = cinder.volumes.get(vol.id)
-            if volume.status == 'available':
-                break
-            if volume.status == 'error':
-                module.fail_json(msg='Error creating volume')
-            time.sleep(5)
-    module.exit_json(changed=True, id=vol.id, info=vol._info)
-
-
-def _wait_for_delete(cinder, vol_id, timeout):
-    expires = timeout + time.time()
-    while time.time() < expires:
-        try:
-            cinder.volumes.get(vol_id)
-        except cinder_exc.NotFound:
-            return True
-        time.sleep(5)
-    return False
-
-
-def _absent_volume(module, cinder, cloud):
-
-    volume_id = cloud.get_volume_id(module.params['display_name'])
-    if not volume_id:
-        module.exit_json(changed=False, result="Volume not Found")
-    try:
-        cinder.volumes.delete(v.id)
-    except cinder_exc, e:
-        module.fail_json(msg='Cannot delete volume:%s' % str(e))
-    if module.params['wait']:
-        if not _wait_for_delete(cinder, v.id, module.params['timeout']):
-            module.exit_json(changed=False, result="Volume deletion timed-out")
+        cloud.delete_volume(
+            module.params['display_name'],
+            module.params['wait'], module.params['timeout'])
+    except shade.OpenStackCloudTimeout:
+        module.exit_json(changed=False, result="Volume deletion timed-out")
     module.exit_json(changed=True, result='Volume Deleted')
 
 
@@ -159,26 +129,22 @@ def main():
         volume_type=dict(default=None),
         display_name=dict(required=True),
         display_description=dict(default=None),
-        image_id=dict(default=None),
-        image_name=dict(default=None),
+        image=dict(default=None),
         snapshot_id=dict(default=None),
     )
     module_kwargs = openstack_module_kwargs(
         mutually_exclusive = [
-            ['image_id', 'snapshot_id'],
-            ['image_name', 'snapshot_id'],
-            ['image_id', 'image_name']
+            ['image', 'snapshot_id'],
         ],
     )
     module = AnsibleModule(argument_spec=argument_spec, **module_kwargs)
 
     try:
         cloud = shade.openstack_cloud(**module.params)
-        cinder = cloud.cinder_client
         if module.params['state'] == 'present':
-            _present_volume(module, cinder, cloud)
+            _present_volume(module, cloud)
         if module.params['state'] == 'absent':
-            _absent_volume(module, cinder, cloud)
+            _absent_volume(module, cloud)
     except shade.OpenStackCloudException as e:
         module.fail_json(msg=e.message)
 
