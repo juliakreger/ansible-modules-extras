@@ -25,7 +25,7 @@ except ImportError:
 DOCUMENTATION = '''
 ---
 module: os_router
-short_description: Create or Delete routers from PpenStack
+short_description: Create or Delete routers from OpenStack
 extends_documentation_fragment: openstack
 description:
    - Create or Delete routers from OpenStack
@@ -87,7 +87,7 @@ def _delete_router(module, neutron, router_id):
     return True
 
 def main():
-    argument_spec = openstack_argument_spec(
+    argument_spec = openstack_full_argument_spec(
         name                            = dict(required=True),
         state                           = dict(default='present', choices=['absent', 'present']),
         admin_state_up                  = dict(type='bool', default=True),

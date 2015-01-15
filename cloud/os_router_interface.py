@@ -120,7 +120,7 @@ def  _remove_interface_router(neutron, module, router_id, subnet_id):
     return True
 
 def main():
-    argument_spec = openstack_argument_spec(
+    argument_spec = openstack_full_argument_spec(
         router_name                     = dict(required=True),
         subnet_name                     = dict(required=True),
     )

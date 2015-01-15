@@ -90,23 +90,8 @@ EXAMPLES = '''
               username=admin password=admin project_name=admin
 '''
 
+
 _os_tenant_id = None
-
-
-def _set_tenant_id(module):
-    global _os_tenant_id
-    if not module.params['tenant_name']:
-        tenant_name = module.params['login_tenant_name']
-    else:
-        tenant_name = module.params['tenant_name']
-
-    for tenant in _os_keystone.tenants.list():
-        if tenant.name == tenant_name:
-            _os_tenant_id = tenant.id
-            break
-    if not _os_tenant_id:
-        module.fail_json(msg = "The tenant id cannot be found, please check the parameters")
-
 
 def _get_net_id(neutron, module):
     kwargs = {
@@ -166,6 +151,7 @@ def _delete_network(module, net_id, neutron):
     return True
 
 def main():
+    global _os_tenant_id
 
     argument_spec = openstack_full_argument_spec(
         name                            = dict(required=True),
@@ -191,9 +177,7 @@ def main():
     try:
         cloud = shade.openstack_cloud(**module.params)
         neutron = cloud.neutron_client
-
-        _set_tenant_id(module)
-
+        _os_tenant_id = cloud.keystone_client.tenant_id
         if module.params['state'] == 'present':
             network_id = _get_net_id(neutron, module)
             if not network_id:

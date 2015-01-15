@@ -166,7 +166,7 @@ def _delete_subnet(module, neutron, subnet_id):
 
 def main():
 
-    argument_spec = openstack_argument_spec(
+    argument_spec = openstack_full_argument_spec(
         name                    = dict(required=True),
         network_name            = dict(required=True),
         cidr                    = dict(required=True),
