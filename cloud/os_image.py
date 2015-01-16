@@ -67,7 +67,7 @@ options:
      default: None
    is_public:
      description:
-        - Whether the image can be accessed publicly
+        - Whether the image can be accessed publicly. Note that publicizing an image requires admin role by default.
      required: false
      default: 'yes'
    copy_from:
@@ -85,6 +85,19 @@ options:
         - The path to the file which has to be uploaded, mutually exclusive with copy_from
      required: false
      default: None
+   ramdisk:
+     descrption:
+        - The name of an existing ramdisk image that will be associated with this image
+     required: false
+     default: None
+   kernel:
+     descrption:
+        - The name of an existing kernel image that will be associated with this image
+     required: false
+     default: None
+   properties:
+     description:
+        - Additional properties to be associated with this image
 requirements: ["shade"]
 '''
 
@@ -98,6 +111,11 @@ EXAMPLES = '''
                 disk_format=qcow2
                 state=present
                 copy_from=http:launchpad.net/cirros/trunk/0.3.0/+download/cirros-0.3.0-x86_64-disk.img
+                kernel=cirros-vmlinuz
+                ramdisk=cirros-initrd
+                properties:
+                    cpu_arch=x86_64
+                    distro=ubuntu
 '''
 
 import time
@@ -124,9 +142,9 @@ def _glance_image_create(module, params, client):
                 break
             time.sleep(5)
     except Exception, e:
-        module.fail_json(msg="Error in creating image: %s" % e.message)
+        module.fail_json(msg="Error in creating image: %s" % type(e))
     if image.status == 'active':
-        module.exit_json(changed=True, result=image.status, id=image.id)
+        return image
     else:
         module.fail_json(msg=" The module timed out, please check manually " + image.status)
 
@@ -141,18 +159,29 @@ def _glance_delete_image(module, params, client):
     module.exit_json(changed=True, result="Deleted")
 
 
+def _glance_update_image_properties(module, properties, image):
+    try:
+        image.update(properties=properties)
+    except Exception, e:
+        module.fail_json(msg="Failed to update image properties for %s: %s" %
+                         (image.id, e.message))
+
+
 def main():
 
     argument_spec = openstack_full_argument_spec(
         name              = dict(required=True),
-        disk_format       = dict(default='qcow2', choices=['aki', 'vhd', 'vmdk', 'raw', 'qcow2', 'vdi', 'iso']),
-        container_format  = dict(default='bare', choices=['aki', 'ari', 'bare', 'ovf']),
+        disk_format       = dict(default='qcow2', choices=['ami', 'ari', 'aki', 'vhd', 'vmdk', 'raw', 'qcow2', 'vdi', 'iso']),
+        container_format  = dict(default='bare', choices=['ami', 'aki', 'ari', 'bare', 'ovf', 'ova']),
         owner             = dict(default=None),
         min_disk          = dict(default=None),
         min_ram           = dict(default=None),
-        is_public         = dict(default=True),
+        is_public         = dict(default=False),
         copy_from         = dict(default= None),
         file              = dict(default=None),
+        ramdisk           = dict(default=None),
+        kernel            = dict(default=None),
+        properties        = dict(default=None),
     )
     module_kwargs = openstack_module_kwargs(
         mutually_exclusive = [['file','copy_from']],
@@ -166,18 +195,41 @@ def main():
     try:
         cloud = shade.openstack_cloud(**module.params)
 
-        id = cloud.get_image_id(module.params['name'])
+        changed = False
+        image = cloud.get_image(name_or_id=module.params['name'], error=False)
 
         if module.params['state'] == 'present':
-            if not id:
-                _glance_image_create(module, module.params, cloud.glance_client)
-            module.exit_json(changed=False, id=id, result="success")
+            if not image:
+                image = _glance_image_create(module, module.params, cloud.glance_client)
+                changed = True
+
+        img_props = {}
+        for attr in ['ramdisk', 'kernel']:
+            if module.params[attr]:
+                other_image_id = cloud.get_image_id(module.params[attr])
+                if image.properties.get('%s_id' % attr) != other_image_id:
+                    spec = '%s_id' % attr
+                    img_props[spec] = other_image_id
+
+        properties = module.params['properties']
+        if properties:
+            for k, v in properties.iteritems():
+                if image.properties.get(k) != v:
+                    img_props[k] = v
+
+        if img_props:
+            changed=True
+            _glance_update_image_properties(module, img_props, image)
 
         if module.params['state'] == 'absent':
-            if not id:
-                module.exit_json(changed=False, result="Success")
+            if not image:
+                module.exit_json(changed=False, result="success")
             else:
                 _glance_delete_image(module, module.params, cloud.glance_client)
+                changed = True
+
+        module.exit_json(changed=changed, id=image.id, result="success")
+
     except shade.OpenStackCloudException as e:
         module.fail_json(msg=e.message)
 
