@@ -127,8 +127,8 @@ def main():
     argument_spec = openstack_full_argument_spec(
         size=dict(required=True),
         volume_type=dict(default=None),
-        display_name=dict(required=True),
-        display_description=dict(default=None),
+        display_name=dict(required=True, aliases=['name']),
+        display_description=dict(default=None, aliases=['description']),
         image=dict(default=None),
         snapshot_id=dict(default=None),
     )

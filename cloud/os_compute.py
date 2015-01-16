@@ -259,26 +259,29 @@ def _create_server(module, cloud):
         ram=module.params['flavor_ram'],
         include=module.params['flavor_include'])
 
-    bootargs = [module.params['name'], image_id, flavor_id]
-    bootkwargs = {
-                'nics' : module.params['nics'],
-                'meta' : module.params['meta'],
-                'security_groups': module.params['security_groups'].split(','),
-                'userdata': module.params['userdata'],
-                'config_drive': module.params['config_drive'],
+    bootkwargs = dict(
+        name=module.params['name'],
+        image=image_id,
+        flavor=flavor_id,
+        nics=module.params['nics'],
+        meta=module.params['meta'],
+        security_groups=module.params['security_groups'].split(','),
+        userdata=module.params['userdata'],
+        config_drive=module.params['config_drive'],
     }
     for optional_param in ('region_name', 'key_name', 'availability_zone'):
         if module.params[optional_param]:
             bootkwargs[optional_param] = module.params[optional_param]
 
     server = cloud.create_server(
-        bootargs, bootkwargs,
         ip_pool=module.params['floating_ip_pools'],
         ips=module.params['floating_ips'],
         auto_ip=module.params['auto_floating_ip'],
         root_volume=module.params['root_volume'],
         terminate_volume=module.params['terminate_volume'],
-        wait=module.params['wait'], timeout=module.params['timeout'])
+        wait=module.params['wait'], timeout=module.params['timeout'],
+        **bootkwargs,
+    )
 
     _exit_hostvars(module, cloud, server)
 
