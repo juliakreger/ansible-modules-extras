@@ -21,8 +21,9 @@ import time
 try:
     import shade
     from shade import meta
+    HAS_SHADE = True
 except ImportError:
-    print("failed=True msg='shade is required for this module'")
+    HAS_SHADE = False
 
 
 DOCUMENTATION = '''
@@ -170,6 +171,9 @@ def main():
     module_kwargs = openstack_module_kwargs()
 
     module = AnsibleModule(argument_spec, **module_kwargs)
+
+    if not HAS_SHADE:
+        module.fail_json(msg='shade is required for this module')
 
     try:
         cloud = shade.openstack_cloud(**module.params)
