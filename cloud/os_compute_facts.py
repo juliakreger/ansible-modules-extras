@@ -18,8 +18,9 @@
 try:
     import shade
     from shade import meta
+    HAS_SHADE = True
 except ImportError:
-    print("failed=True msg='shade is required for this module'")
+    HAS_SHADE = False
 
 DOCUMENTATION = '''
 ---
@@ -27,7 +28,9 @@ module: os_compute_facts
 short_description: Retrieve facts about a compute instance
 extends_documentation_fragment: openstack
 description:
-   - Retrieve facts about a compute instance from OpenStack
+   - Retrieve facts about a compute instance from OpenStack.
+notes:
+   - Facts are placed in the C(openstack) variable.
 options:
    name:
      description:
@@ -69,6 +72,9 @@ def main():
         ],
     )
     module = AnsibleModule(argument_spec, **module_kwargs)
+
+    if not HAS_SHADE:
+        module.fail_json(msg='shade is required for this module')
 
     try:
         cloud = shade.openstack_cloud(**module.params)

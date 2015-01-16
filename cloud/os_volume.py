@@ -19,8 +19,9 @@ import time
 
 try:
     import shade
+    HAS_SHADE = True
 except ImportError:
-    print("failed=True msg='shade is required for this module'")
+    HAS_SHADE = False
 
 from cinderclient import exceptions as cinder_exc
 
@@ -138,6 +139,9 @@ def main():
         ],
     )
     module = AnsibleModule(argument_spec=argument_spec, **module_kwargs)
+
+    if not HAS_SHADE:
+        module.fail_json(msg='shade is required for this module')
 
     try:
         cloud = shade.openstack_cloud(**module.params)

@@ -18,8 +18,9 @@
 
 try:
     import shade
+    HAS_SHADE = True
 except ImportError:
-    print("failed=True msg='shade is required for this module'")
+    HAS_SHADE = False
 
 DOCUMENTATION = '''
 ---
@@ -165,6 +166,9 @@ def main():
     )
     module_kwargs = openstack_module_kwargs()
     module = AnsibleModule(argument_spec, **module_kwargs)
+
+    if not HAS_SHADE:
+        module.fail_json(msg='shade is required for this module')
 
     if module.params['provider_network_type'] in ['vlan' , 'flat']:
         if not module.params['provider_physical_network']:

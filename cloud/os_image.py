@@ -18,8 +18,9 @@
 
 try:
     import shade
+    HAS_SHADE = True
 except ImportError:
-    print("failed=True msg='shade is required for this module'")
+    HAS_SHADE = False
 
 
 DOCUMENTATION = '''
@@ -187,6 +188,9 @@ def main():
         mutually_exclusive = [['file','copy_from']],
     )
     module = AnsibleModule(argument_spec, **module_kwargs)
+
+    if not HAS_SHADE:
+        module.fail_json(msg='shade is required for this module')
 
     if module.params['state'] == 'present':
         if not module.params['file'] and not module.params['copy_from']:

@@ -25,8 +25,9 @@ import time
 try:
     import shade
     from shade import meta
+    HAS_SHADE = True
 except ImportError:
-    print("failed=True msg='shade is required for this module'")
+    HAS_SHADE = False
 
 from novaclient.v1_1 import client as nova_client
 from novaclient.v1_1 import floating_ips 
@@ -294,23 +295,28 @@ def _delete_floating_ip_list(cloud, server, extra_ips):
 
 def _check_floating_ips(module, cloud, server):
     changed = False
-    if module.params['floating_ip_pools'] or module.params['floating_ips'] or module.params['auto_floating_ip']:
+
+    auto_floating_ip = module.params['auto_floating_ip']
+    floating_ips = module.params['floating_ips']
+    floating_ip_pools = module.params['floating_ip_pools']
+
+    if floating_ip_pools or floating_ips or auto_floating_ip:
         ips = openstack_find_nova_addresses(server.addresses, 'floating')
         if not ips:
             # If we're configured to have a floating but we don't have one,
             # let's add one
             server = cloud.add_ips_to_server(
                 server,
-                auto_ip=module.params['auto_floating_ip'],
-                ips=module.params['floating_ips'],
-                ip_pool=module.params['floating_ip_pools'],
+                auto_ip=auto_floating_ip,
+                ips=floating_ips,
+                ip_pool=floating_ip_pools,
             )
             changed = True
-        elif module.params['floating_ips']:
+        elif floating_ips:
             # we were configured to have specific ips, let's make sure we have
             # those
             missing_ips = []
-            for ip in module.params['floating_ips']:
+            for ip in floating_ips:
                 if ip not in ips:
                     missing_ips.append(ip)
             if missing_ips:
@@ -318,7 +324,7 @@ def _check_floating_ips(module, cloud, server):
                 changed = True
             extra_ips = []
             for ip in ips:
-                if ip not in module.params['floating_ips']:
+                if ip not in floating_ips:
                     extra_ips.append(ip)
             if extra_ips:
                 _delete_floating_ip_list(cloud, server, extra_ips)
@@ -327,16 +333,17 @@ def _check_floating_ips(module, cloud, server):
 
 
 def _get_server_state(module, cloud):
+    state = module.params['state']
     server = cloud.get_server_by_name(module.params['name'])
-    if server and module.params['state'] == 'present':
+    if server and state == 'present':
         if server.status != 'ACTIVE':
             module.fail_json(
                 msg="The instance is available but not Active state:" + server.status)
         (ip_changed, server) = _check_floating_ips(module, cloud, server)
         _exit_hostvars(module, cloud, server, ip_changed)
-    if server and module.params['state'] == 'absent':
+    if server and state == 'absent':
         return True
-    if module.params['state'] == 'absent':
+    if state == 'absent':
         module.exit_json(changed = False, result = "not present")
     return True
 
@@ -372,15 +379,24 @@ def main():
     )
     module = AnsibleModule(argument_spec, **module_kwargs)
 
+    if not HAS_SHADE:
+        module.fail_json(msg='shade is required for this module')
+
+    state = module.params['state']
+    image_id = module.params['image_id']
+    image_name = module.params['image_name']
+
+    if state == 'present' and not image_id and not image_name:
+        module.fail_json(
+            msg="Parameter 'image_id' or `image_name` is required if state == 'present'")
+
     try:
         cloud = shade.openstack_cloud(**module.params)
 
-        if module.params['state'] == 'present':
-            if not module.params['image']:
-                module.fail_json(msg="Parameter 'image' is required if state == 'present'")
+        if state == 'present':
             _get_server_state(module, cloud)
             _create_server(module, cloud)
-        if module.params['state'] == 'absent':
+        elif state == 'absent':
             _get_server_state(module, cloud)
             _delete_server(module, cloud)
     except shade.OpenStackCloudException as e:
