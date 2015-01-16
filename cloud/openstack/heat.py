@@ -18,15 +18,15 @@
 
 DOCUMENTATION = '''
 ---
-module: head
-short_description: create an OpenStack head stack
+module: heat
+short_description: create an OpenStack heat stack
 description:
-     - Launches a head stack and waits for it complete.
+     - Launches a heat stack and waits for it complete.
 version_added: "0.1"
 options:
   stack_name:
     description:
-      - name of the head stack
+      - name of the heat stack
     required: true
     default: null
     aliases: []
@@ -94,7 +94,7 @@ options:
     version_added: "1.5"
   auth_url:
     description:
-      - The head url to use. If not specified then the value of the OS_AUTH_URL environment variable, if any, is used.
+      - The heat url to use. If not specified then the value of the OS_AUTH_URL environment variable, if any, is used.
     required: false
     aliases: ['auth_url' ]
     version_added: "1.5"
@@ -106,7 +106,7 @@ author: Justina Chen
 EXAMPLES = '''
 # Basic task example
 tasks:
-- name: launch ansible head example
+- name: launch ansible heat example
   head:
     stack_name: "ansible-head"
     disable_rollback: true
