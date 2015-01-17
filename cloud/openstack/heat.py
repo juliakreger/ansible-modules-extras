@@ -166,9 +166,6 @@ def main():
         try:
             heat.stacks.create(stack_name, parameters=template_parameters_tup,
                              template_body=template_body,
-                             stack_policy_body=stack_policy_body,
-                             disable_rollback=disable_rollback,
-                             capabilities=['CAPABILITY_IAM'],
                              **kwargs)
             operation = 'CREATE'
         except Exception, err:
