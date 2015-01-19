@@ -139,8 +139,11 @@ def main():
     keystone = ksclient.Client(username=username, password=password,
                             tenant_name=tenant_name, auth_url=auth_url)
     auth_token = keystone.auth_ref['token']['id']
-    tenant_id = keystone.auth_ref['token']['tenant']['id']
-    heat_url = '%s/%s' % (auth_url,tenant_id)
+    heat_url = ''
+    services = keystone.auth_ref['serviceCatalog']
+    for service in services:
+        if service['name'] == 'heat':
+            heat_url = service['endpoints'][0]['publicURL']
 
     # creat heat client by using auth token
     stack_outputs = {}
