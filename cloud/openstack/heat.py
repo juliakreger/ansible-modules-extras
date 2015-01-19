@@ -30,6 +30,13 @@ options:
     required: true
     default: null
     aliases: []
+  disable_rollback:
+    description:
+      - If a stcks fails to form, rollback will remove the stack
+    required: false
+    default: "false"
+    choices: [ "true", "false" ]
+    aliases: []
   template_parameters:
     description:
       - a list of hashes of all the template variables for the stack
@@ -45,18 +52,10 @@ options:
     aliases: []
   template:
     description:
-      - the path of the heat template
+      - the path of the heat template file
     required: true
     default: null
     aliases: []
-  tags:
-    description:
-      - Dictionary of tags to associate with stack and it's resources during stack creation. Cannot be updated later.
-        Requires at least Boto version 2.6.0.
-    required: false
-    default: null
-    aliases: []
-    version_added: "1.4"
 
 requirements: [ "heatclient", "keystoneclient" ]
 author: Justina Chen
@@ -68,14 +67,13 @@ tasks:
 - name: launch ansible heat example
   heat:
     stack_name: "ansible-heat"
-    template: "files/heat-example.json"
+    disable_rollback: "false"
+    template: "files/heat-example.yaml"
     template_parameters:
       KeyName: "justina"
       DiskType: "ephemeral"
       InstanceType: "m1.small"
       Images: ["uuid", "uuid"]
-    tags:
-      Stack: "ansible-heat"
 '''
 
 import json
@@ -84,6 +82,8 @@ import os
 
 try:
     from heatclient.client import Client
+    from heatclient.common import template_utils
+    from heatclient.common import utils
     from keystoneclient.v2_0 import client as ksclient
 except ImportError:
     print("failed=True msg='heatclient and keystoneclient is required for this module'")
@@ -127,28 +127,13 @@ def main():
             template_parameters=dict(required=False, type='dict', default={}),
             action=dict(default='create', choices=['create', 'delete']),
             template=dict(default=None, required=True),
-            tags=dict(default=None)
+            disable_rollback=dict(default=False, type='bool')
         )
     )
 
     module = AnsibleModule(
         argument_spec=argument_spec,
     )
-
-    action = module.params['action']
-    stack_name = module.params['stack_name']
-    template_body = open(module.params['template'], 'r').read()
-    template_parameters = module.params['template_parameters']
-    tags = module.params['tags']
-
-    kwargs = dict()
-    if tags is not None:
-        kwargs['tags'] = tags
-
-
-    # convert the template parameters ansible passes into a tuple for boto
-    template_parameters_tup = [(k, v) for k, v in template_parameters.items()]
-    stack_outputs = {}
 
     # keystone authentication
     keystone = ksclient.Client(username=username, password=password,
@@ -158,22 +143,33 @@ def main():
     heat_url = '%s/%s' % (auth_url,tenant_id)
 
     # creat heat client by using auth token
+    stack_outputs = {}
     heat = Client('1', endpoint=heat_url, token=auth_token)
     result = {}
     operation = None
 
+    action = module.params['action']
+
     if action == 'create':
+        tpl_files, template = template_utils.get_template_contents(module.params['template'])
+
+        fields = {
+            'stack_name': module.params['stack_name'],
+            'disable_rollback': module.params['disable_rollback'],
+            'parameters': utils.format_parameters(module.params['template_parameters']),
+            'template': template,
+            'files': dict(list(tpl_files.items()))
+        }
         try:
-            heat.stacks.create(stack_name, parameters=template_parameters_tup,
-                             template_body=template_body,
-                             **kwargs)
+            heat.stacks.create(**fileds)
             operation = 'CREATE'
         except Exception, err:
             module.fail_json(msg=err)
         result = stack_operation(heat, stack_name, operation)
 
     if action == 'delete':
-        heat.stacks.delete(stack_name)
+        fields = {'stack_id': stack_name}
+        heat.stacks.delete(**fields)
         operation = 'DELETE'
         result = stack_operation(heat, stack_name, operation)
 
