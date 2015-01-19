@@ -164,7 +164,7 @@ def main():
             'files': dict(list(tpl_files.items()))
         }
         try:
-            heat.stacks.create(**fileds)
+            heat.stacks.create(**fields)
             operation = 'CREATE'
         except Exception, err:
             module.fail_json(msg=err)
