@@ -152,12 +152,13 @@ def main():
     operation = None
 
     action = module.params['action']
+    stack_name = module.params['stack_name']
 
     if action == 'create':
         tpl_files, template = template_utils.get_template_contents(module.params['template'])
 
         fields = {
-            'stack_name': module.params['stack_name'],
+            'stack_name': stack_name,
             'disable_rollback': module.params['disable_rollback'],
             'parameters': utils.format_parameters(module.params['template_parameters']),
             'template': template,
@@ -167,7 +168,7 @@ def main():
             heat.stacks.create(**fields)
             operation = 'CREATE'
         except Exception, err:
-            module.fail_json(msg=err)
+            module.fail_json(msg=err.message)
         result = stack_operation(heat, stack_name, operation)
 
     if action == 'delete':
