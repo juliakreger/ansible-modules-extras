@@ -110,10 +110,10 @@ def stack_operation(heat, stack_name, operation):
             else:
                 result = dict(changed= True, output='Stack Not Found')
             break
-        if '%s_COMPLETE' % operation == stack.status:
+        if 'Complete' in stack.status:
             result = dict(changed=True, output = 'Stack %s complete' % operation)
             break
-        elif '%s_FAILED' % operation == stack.status:
+        elif 'Fail' in stack.status:
             result = dict(failed=True, output = 'Stack %s failed' % operation)
             break
         else:
