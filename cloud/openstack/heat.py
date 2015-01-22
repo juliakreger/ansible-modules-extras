@@ -149,7 +149,6 @@ def main():
     stack_outputs = {}
     heat = Client('1', endpoint=heat_url, token=auth_token)
     result = {}
-    operation = None
 
     action = module.params['action']
     stack_name = module.params['stack_name']
@@ -166,22 +165,18 @@ def main():
         }
         try:
             heat.stacks.create(**fields)
-            operation = 'CREATE'
         except Exception, err:
             module.fail_json(msg=err.message)
-        result = stack_operation(heat, stack_name, operation)
+        result = stack_operation(heat, stack_name, action)
 
     if action == 'delete':
         fields = {'stack_id': stack_name}
         try:
             heat.stacks.delete(**fields)
-            operation = 'DELETE'
         except Exception, err:
             if "not be found" not in err.message:
                 module.fail_json(msg=err.message)
-            else:
-                operation = 'DELETE'
-        result = stack_operation(heat, stack_name, operation)
+        result = stack_operation(heat, stack_name, action)
 
     module.exit_json(**result)
 
