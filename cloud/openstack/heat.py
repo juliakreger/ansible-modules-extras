@@ -173,8 +173,14 @@ def main():
 
     if action == 'delete':
         fields = {'stack_id': stack_name}
-        heat.stacks.delete(**fields)
-        operation = 'DELETE'
+        try:
+            heat.stacks.delete(**fields)
+            operation = 'DELETE'
+        except Exception, err:
+            if "not be found" not in err.message:
+                module.fail_json(msg=err.message)
+            else:
+                operation = 'DELETE'
         result = stack_operation(heat, stack_name, operation)
 
     module.exit_json(**result)
