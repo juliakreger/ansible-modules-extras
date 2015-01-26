@@ -173,7 +173,7 @@ def main():
                 module.fail_json(msg = " for vlan & gre networks, variable provider_segmentation_id should be set.")
 
     try:
-        cloud = shade.openstack_cloud(**module.params)
+        cloud = shade.openstack_cloud(**openstack_auth(module))
         neutron = cloud.neutron_client
         if module.params['state'] == 'present':
             network_id = _get_net_id(neutron, module)

@@ -200,7 +200,7 @@ def main():
     internal_network_name = module.params['internal_network_name']
 
     try:
-        cloud = shade.openstack_cloud(**module.params)
+        cloud = shade.openstack_cloud(**openstack_auth(module))
         neutron = cloud.neutron_client
 
         server_info, server_obj = _get_server_state(module, cloud)

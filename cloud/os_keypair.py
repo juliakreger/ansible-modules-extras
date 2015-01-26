@@ -83,7 +83,7 @@ def main():
     public_key = module.params['public_key']
 
     try:
-        cloud = shade.openstack_cloud(**module.params)
+        cloud = shade.openstack_cloud(**openstack_auth(module))
 
         if state == 'present':
             for key in cloud.list_keypairs():

@@ -132,7 +132,7 @@ def main():
         module.fail_json(msg='shade is required for this module')
 
     try:
-        cloud = shade.openstack_cloud(**module.params)
+        cloud = shade.openstack_cloud(**openstack_auth(module))
         neutron = cloud.neutron_client
 
         router_id = _get_router_id(module, neutron)
