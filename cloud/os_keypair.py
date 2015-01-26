@@ -45,11 +45,14 @@ options:
      default: None
    public_key:
      description:
-        - The public key that would be uploaded to nova and injected
-          to vm's upon creation
+        - The public key that would be uploaded to nova and injected to vm's upon creation
      required: false
      default: None
-
+   public_key_file:
+     description:
+        - Path to local file containing ssh public key.  Mutually exclusive with public_key
+    required: false
+    default: None
 requirements: ["shade"]
 '''
 
@@ -71,9 +74,16 @@ def main():
     argument_spec = openstack_full_argument_spec(
         name=dict(required=True),
         public_key=dict(default=None),
+        public_key_file=dict(default=None),
     )
-    module_kwargs = openstack_module_kwargs()
+    module_kwargs = openstack_module_kwargs(
+        mutually_exclusive=[['public_key', 'public_key_file']])
     module = AnsibleModule(argument_spec, **module_kwargs)
+
+    if module.params['public_key_file']:
+        public_key = open(module.params['public_key_file']).read()
+    else:
+        public_key = module.params['public_key']
 
     if not HAS_SHADE:
         module.fail_json(msg='shade is required for this module')
