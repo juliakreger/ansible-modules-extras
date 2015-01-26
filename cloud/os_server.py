@@ -413,7 +413,7 @@ def main():
             )
 
     try:
-        cloud = shade.openstack_cloud(**module.params)
+        cloud = shade.openstack_cloud(**openstack_auth(module))
 
         if state == 'present':
             _get_server_state(module, cloud)
