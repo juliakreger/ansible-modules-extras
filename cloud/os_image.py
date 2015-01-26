@@ -200,7 +200,7 @@ def main():
         cloud = shade.openstack_cloud(**openstack_auth(module))
 
         changed = False
-        image = cloud.get_image(name_or_id=module.params['name'], error=False)
+        image = cloud.get_image(name_or_id=module.params['name'])
 
         if module.params['state'] == 'present':
             if not image:
