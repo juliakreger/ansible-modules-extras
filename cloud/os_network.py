@@ -92,11 +92,8 @@ EXAMPLES = '''
 '''
 
 
-_os_tenant_id = None
-
 def _get_net_id(neutron, module):
     kwargs = {
-            'tenant_id': _os_tenant_id,
             'name': module.params['name'],
     }
     try:
@@ -113,7 +110,6 @@ def _create_network(module, neutron):
 
     network = {
         'name':                      module.params.get('name'),
-        'tenant_id':                 _os_tenant_id,
         'provider:network_type':     module.params.get('provider_network_type'),
         'provider:physical_network': module.params.get('provider_physical_network'),
         'provider:segmentation_id':  module.params.get('provider_segmentation_id'),
@@ -152,8 +148,6 @@ def _delete_network(module, net_id, neutron):
     return True
 
 def main():
-    global _os_tenant_id
-
     argument_spec = openstack_full_argument_spec(
         name                            = dict(required=True),
         tenant_name                     = dict(default=None),
@@ -181,7 +175,6 @@ def main():
     try:
         cloud = shade.openstack_cloud(**module.params)
         neutron = cloud.neutron_client
-        _os_tenant_id = cloud.keystone_client.tenant_id
         if module.params['state'] == 'present':
             network_id = _get_net_id(neutron, module)
             if not network_id:
