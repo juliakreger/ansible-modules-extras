@@ -334,7 +334,7 @@ def _check_floating_ips(module, cloud, server):
 
 def _get_server_state(module, cloud):
     state = module.params['state']
-    server = cloud.get_server_by_name(module.params['name'])
+    server = cloud.get_server(module.params['name'])
     if server and state == 'present':
         if server.status != 'ACTIVE':
             module.fail_json(
