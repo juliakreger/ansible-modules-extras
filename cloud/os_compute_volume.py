@@ -41,8 +41,9 @@ options:
      default: present
    server:
      description:
-       - Name or id of server you want to attach a volume to
+       - Name or ID of server you want to attach a volume to
      required: true
+     default: None
    volume:
      description:
       - Name or id of volume you want to attach to a server
@@ -108,7 +109,7 @@ def _present_volume(cloud, nova, module, server, volume):
                 nova.volumes.delete_server_volume(server.id, volume.id)
                 volume = _wait_for_detach(cloud, module)
             else:
-                server = cloud.get_server_by_id(server.id)
+                server = cloud.get_server(module.params['server_id'])
                 hostvars = meta.get_hostvars_from_server(cloud, server)
                 module.exit_json(
                     changed=False,
@@ -137,7 +138,7 @@ def _present_volume(cloud, nova, module, server, volume):
                     break
 
     if attachment:
-        server = cloud.get_server_by_id(module.params['server_id'])
+        server = cloud.get_server(module.params['server_id'])
         hostvars = meta.get_hostvars_from_server(cloud, server)
         module.exit_json(
             changed=True, id=volume.id, attachments=volume.attachments,

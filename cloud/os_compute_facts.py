@@ -32,14 +32,10 @@ description:
 notes:
    - Facts are placed in the C(openstack) variable.
 options:
-   name:
+   server:
      description:
-        - Name of the instance
-     default: None
-   id:
-     description:
-        - Id of the instance
-     default: None
+        - Name or ID of the instance
+     required: true
    mounts:
      description:
         - Optional list of dicts tying volumes to mount points
@@ -59,18 +55,10 @@ EXAMPLES = '''
 def main():
 
     argument_spec = openstack_full_argument_spec(
-        name=dict(default=None),
-        id=dict(default=None),
+        server=dict(required=True),
         mounts=dict(default={}),
     )
-    module_kwargs = openstack_module_kwargs(
-        mutually_exclusive=[
-            ['name', 'id'],
-        ],
-        required_one_of=[
-            ['name', 'id'],
-        ],
-    )
+    module_kwargs = openstack_module_kwargs()
     module = AnsibleModule(argument_spec, **module_kwargs)
 
     if not HAS_SHADE:
@@ -78,10 +66,7 @@ def main():
 
     try:
         cloud = shade.openstack_cloud(**module.params)
-        if module.params['id']:
-            server = cloud.get_server_by_id(module.params['id'])
-        else:
-            server = cloud.get_server_by_name(module.params['name'])
+        server = cloud.get_server(module.params['server'])
         hostvars = dict(openstack=meta.get_hostvars_from_server(
             cloud, server, mounts=module.params['mounts']))
         module.exit_json(changed=False, ansible_facts=hostvars)
