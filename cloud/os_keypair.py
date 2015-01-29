@@ -17,7 +17,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this software.  If not, see <http://www.gnu.org/licenses/>.
 
-import time
 
 try:
     import shade
@@ -46,7 +45,8 @@ options:
      default: None
    public_key:
      description:
-        - The public key that would be uploaded to nova and injected to vm's upon creation
+        - The public key that would be uploaded to nova and injected
+          to vm's upon creation
      required: false
      default: None
 
@@ -55,14 +55,17 @@ requirements: ["shade"]
 
 EXAMPLES = '''
 # Creates a key pair with the running users public key
-- os_keypair: state=present username=admin
-                password=admin project_name=admin name=ansible_key
-                public_key={{ lookup('file','~/.ssh/id_rsa.pub') }}
+- os_keypair:
+      state=present
+      name=ansible_key
+      public_key={{ lookup('file','~/.ssh/id_rsa.pub') }}
 
 # Creates a new key pair and the private key returned after the run.
-- os_keypair: state=present username=admin password=admin
-                project_name=admin name=ansible_key
+- os_keypair:
+      state=present
+      name=ansible_key
 '''
+
 
 def main():
     argument_spec = openstack_full_argument_spec(
@@ -75,32 +78,45 @@ def main():
     if not HAS_SHADE:
         module.fail_json(msg='shade is required for this module')
 
+    state = module.params['state']
+    name = module.params['name']
+    public_key = module.params['public_key']
+
     try:
         nova = shade.openstack_cloud(**module.params)
 
-        if module.params['state'] == 'present':
+        if state == 'present':
             for key in nova.list_keypairs():
-                if key.name == module.params['name']:
-                    if module.params['public_key'] and (module.params['public_key'] != key.public_key ):
-                        module.fail_json(msg = "name {} present but key hash not the same as offered.  Delete key first.".format(key['name']))
+                if key.name == name:
+                    if public_key and (public_key != key.public_key):
+                        module.fail_json(
+                            msg="Name %s present but key hash not the same "
+                                "as offered. Delete key first." % key['name']
+                        )
                     else:
-                        module.exit_json(changed = False, result = "Key present")            
+                        module.exit_json(changed=False, result="Key present")
             try:
-                key = nova.create_keypair(module.params['name'], module.params['public_key'])
+                key = nova.create_keypair(name, public_key)
             except Exception, e:
-                module.exit_json(msg = "Error in creating the keypair: %s" % e.message)
-            if not module.params['public_key']:
-                module.exit_json(changed = True, key = key.private_key)
-            module.exit_json(changed = True, key = None)
-        if module.params['state'] == 'absent':
+                module.exit_json(
+                    msg="Error in creating the keypair: %s" % e.message
+                )
+            if not public_key:
+                module.exit_json(changed=True, key=key.private_key)
+            module.exit_json(changed=True, key=None)
+
+        elif state == 'absent':
             for key in nova.list_keypairs():
-                if key.name == module.params['name']:
+                if key.name == name:
                     try:
-                        nova.delete_keypair(module.params['name'])
+                        nova.delete_keypair(name)
                     except Exception, e:
-                        module.fail_json(msg = "The keypair deletion has failed: %s" % e.message)
-                    module.exit_json( changed = True, result = "deleted")
-            module.exit_json(changed = False, result = "not present")
+                        module.fail_json(
+                            msg="Keypair deletion has failed: %s" % e.message
+                        )
+                    module.exit_json(changed=True, result="deleted")
+            module.exit_json(changed=False, result="not present")
+
     except shade.OpenStackCloudException as e:
         module.fail_json(msg=e.message)
 
@@ -108,4 +124,3 @@ def main():
 from ansible.module_utils.basic import *
 from ansible.module_utils.openstack import *
 main()
-
