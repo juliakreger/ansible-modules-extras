@@ -28,7 +28,7 @@ except ImportError:
 
 DOCUMENTATION = '''
 ---
-module: os_compute_volume
+module: os_server_volume
 short_description: Attach/Detach Volumes from OpenStack VM's
 extends_documentation_fragment: openstack
 description:
@@ -62,7 +62,7 @@ EXAMPLES = '''
   hosts: localhost
   tasks:
   - name: attach volume to host
-    os_compute_volume:
+    os_server_volume:
       state: present
       username: admin
       password: admin
