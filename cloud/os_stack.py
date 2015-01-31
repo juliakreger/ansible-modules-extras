@@ -18,7 +18,7 @@
 
 DOCUMENTATION = '''
 ---
-module: os_heat
+module: os_stack
 short_description: Create an OpenStack heat stack
 extends_documentation_fragment: openstack
 description:
@@ -27,7 +27,7 @@ version_added: "0.1"
 options:
   stack_name:
     description:
-      - name of the heat stack
+      - name of the stack
     required: true
     default: null
   rollback:
@@ -43,7 +43,7 @@ options:
     default: {}
   template:
     description:
-      - the path of the heat template file
+      - the path of the stack template file
     required: true
     default: null
 
@@ -55,7 +55,7 @@ EXAMPLES = '''
 # Basic task example
 tasks:
 - name: launch ansible heat example
-  os_heat:
+  os_stack:
     name: "ansible-heat"
     rollback: yes
     template: "files/heat-example.yaml"

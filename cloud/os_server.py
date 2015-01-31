@@ -32,7 +32,7 @@ except ImportError:
 
 DOCUMENTATION = '''
 ---
-module: os_compute
+module: os_server
 short_description: Create/Delete Compute Instances from OpenStack
 extends_documentation_fragment: openstack
 description:
@@ -138,7 +138,7 @@ requirements: ["shade"]
 
 EXAMPLES = '''
 # Creates a new instance and attaches to a network and passes metadata to the instance
-- os_compute:
+- os_server:
        state: present
        username: admin
        password: admin
@@ -159,7 +159,7 @@ EXAMPLES = '''
   hosts: localhost
   tasks:
   - name: launch an instance
-    os_compute:
+    os_server:
       state: present
       username: username
       password: Equality7-2521
@@ -180,7 +180,7 @@ EXAMPLES = '''
   hosts: localhost
   tasks:
   - name: launch an instance
-    os_compute:
+    os_server:
       state: present
       username: username
       password: Equality7-2521
@@ -201,7 +201,7 @@ EXAMPLES = '''
   hosts: localhost
   tasks:
   - name: launch an instance
-    os_compute:
+    os_server:
       name: vm1
       state: present
       username: username
@@ -218,7 +218,7 @@ EXAMPLES = '''
   hosts: localhost
   tasks:
   - name: launch an instance
-    os_compute:
+    os_server:
       name: vm1
       state: present
       username: username
