@@ -30,11 +30,11 @@ options:
       - name of the heat stack
     required: true
     default: null
-  disable_rollback:
+  rollback:
     description:
       - If a stack fails to form, rollback will remove the stack
     required: false
-    default: "false"
+    default: true
     choices: [ "true", "false" ]
   template_parameters:
     description:
@@ -57,7 +57,7 @@ tasks:
 - name: launch ansible heat example
   os_heat:
     name: "ansible-heat"
-    disable_rollback: no
+    rollback: yes
     template: "files/heat-example.yaml"
     template_parameters:
       KeyName: "justina"
@@ -71,94 +71,55 @@ import time
 import os
 
 try:
-    from heatclient.client import Client
-    from heatclient.common import template_utils
-    from heatclient.common import utils
-    from keystoneclient.v2_0 import client as ksclient
+    import shade
+    HAS_SHADE = True
 except ImportError:
-    print("failed=True msg='heatclient and keystoneclient is required for this module'")
+    HAS_SHADE = False
 
-
-def stack_operation(heat, name, operation):
-    '''gets the status of a stack while it is created/deleted'''
-    existed = []
-    result = {}
-    operation_complete = False
-    while operation_complete == False:
-        try:
-            stack = heat.get(name)
-            existed.append('yes')
-        except:
-            if 'yes' in existed:
-                result = dict(changed=True, output='Stack Deleted')
-            else:
-                result = dict(changed= True, output='Stack Not Found')
-            break
-        if 'Complete' in stack.status:
-            result = dict(changed=True, output = 'Stack %s complete' % operation)
-            break
-        elif 'Fail' in stack.status:
-            result = dict(failed=True, output = 'Stack %s failed' % operation)
-            break
-        else:
-            time.sleep(5)
-    return result
 
 def main():
     argument_spec = openstack_full_argument_spec(
         name                 = dict(required=True),
         template_parameters  = dict(required=False, type='dict', default={}),
         template             = dict(default=None, required=True),
-        disable_rollback     = dict(default=False, type='bool')
+        rollback             = dict(default=True, type='bool')
     )
+    module_kwargs = openstack_module_kwargs()
+    module = AnsibleModule(argument_spec, **module_kwargs)
 
-    module = AnsibleModule(
-        argument_spec=argument_spec,
-    )
+    if not HAS_SHADE:
+        module.fail_json(msg='shade is required for this module')
 
-    # keystone authentication
-    keystone = ksclient.Client(username=username, password=password,
-                            tenant_name=tenant_name, auth_url=auth_url)
-    auth_token = keystone.auth_ref['token']['id']
-    heat_url = ''
-    services = keystone.auth_ref['serviceCatalog']
-    for service in services:
-        if service['name'] == 'heat':
-            heat_url = service['endpoints'][0]['publicURL']
+    try:
+        cloud = shade.openstack_cloud(**module.params)
 
-    # creat heat client by using auth token
-    stack_outputs = {}
-    heat = Client('1', endpoint=heat_url, token=auth_token)
-    result = {}
+        state = module.params['state']
+        stack = cloud.get_stack(module.params['name'])
 
-    state = module.params['state']
-    name = module.params['name']
+        if state == 'present':
+            if stack:
+                module.exit_json(changed=False)
+            stack = cloud.create_stack(
+                name=module.params['name'],
+                rollback=module.params['rollback'],
+                template=module.params['template'],
+                wait=module.params['wait'],
+                timeout=module.params['timeout'],
+                **(module.params['template_parameters']),
+            )
+            module.exit_json(changed=True, stack=stack)
 
-    if state == 'present':
-        tpl_files, template = template_utils.get_template_contents(module.params['template'])
+        if state == 'absent':
+            if not stack:
+                module.exit_json(changed=False)
+            cloud.delete_stack(
+                name=module.params['name'],
+                wait=module.params['wait'],
+                timeout=module.params['timeout'])
 
-        fields = {
-            'stack_name': name,
-            'disable_rollback': module.params['disable_rollback'],
-            'parameters': utils.format_parameters(module.params['template_parameters']),
-            'template': template,
-            'files': dict(list(tpl_files.items()))
-        }
-        try:
-            heat.stacks.create(**fields)
-        except Exception, err:
-            module.fail_json(msg=err.message)
-        result = stack_operation(heat, stack_name, state)
-
-    if state == 'absent':
-        fields = {'stack_id': name}
-        try:
-            heat.stacks.delete(**fields)
-        except Exception, err:
-            if "not be found" not in err.message:
-                module.fail_json(msg=err.message)
-        result = stack_operation(heat, name, state)
-
+    except shade.OpenStackCloudException as e:
+        module.fail_json(msg=e.message)
+    result = stack_operation(heat, name, state)
     module.exit_json(**result)
 
 # import module snippets
