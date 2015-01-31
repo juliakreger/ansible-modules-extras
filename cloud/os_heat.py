@@ -18,10 +18,11 @@
 
 DOCUMENTATION = '''
 ---
-module: heat
-short_description: create an OpenStack heat stack
+module: os_heat
+short_description: Create an OpenStack heat stack
+extends_documentation_fragment: openstack
 description:
-     - Launches a heat stack and waits for it complete.
+   - Launches a heat stack and waits for it complete.
 version_added: "0.1"
 options:
   stack_name:
@@ -29,35 +30,24 @@ options:
       - name of the heat stack
     required: true
     default: null
-    aliases: []
   disable_rollback:
     description:
-      - If a stcks fails to form, rollback will remove the stack
+      - If a stack fails to form, rollback will remove the stack
     required: false
     default: "false"
     choices: [ "true", "false" ]
-    aliases: []
   template_parameters:
     description:
       - a list of hashes of all the template variables for the stack
     required: false
     default: {}
-    aliases: []
-  action:
-    description:
-      - If action is "create", stack will be created.
-        If state is "delete", stack will be removed.
-    required: true
-    default: null
-    aliases: []
   template:
     description:
       - the path of the heat template file
     required: true
     default: null
-    aliases: []
 
-requirements: [ "heatclient", "keystoneclient" ]
+requirements: [ "shade" ]
 author: Justina Chen
 '''
 
@@ -65,9 +55,9 @@ EXAMPLES = '''
 # Basic task example
 tasks:
 - name: launch ansible heat example
-  heat:
-    stack_name: "ansible-heat"
-    disable_rollback: "false"
+  os_heat:
+    name: "ansible-heat"
+    disable_rollback: no
     template: "files/heat-example.yaml"
     template_parameters:
       KeyName: "justina"
@@ -88,21 +78,15 @@ try:
 except ImportError:
     print("failed=True msg='heatclient and keystoneclient is required for this module'")
 
-username = os.getenv('OS_USERNAME')
-password = os.getenv('OS_PASSWORD')
-tenant_name = os.getenv('OS_TENANT_NAME')
-auth_url = os.getenv('OS_AUTH_URL')
-if '' in (username, password, tenant_name, auth_url):
-    print ("system environment variables are required for keystone authentication")
 
-def stack_operation(heat, stack_name, operation):
+def stack_operation(heat, name, operation):
     '''gets the status of a stack while it is created/deleted'''
     existed = []
     result = {}
     operation_complete = False
     while operation_complete == False:
         try:
-            stack = heat.get(stack_name)
+            stack = heat.get(name)
             existed.append('yes')
         except:
             if 'yes' in existed:
@@ -121,14 +105,11 @@ def stack_operation(heat, stack_name, operation):
     return result
 
 def main():
-    argument_spec = openstack_argument_spec()
-    argument_spec.update(dict(
-            stack_name=dict(required=True),
-            template_parameters=dict(required=False, type='dict', default={}),
-            action=dict(default='create', choices=['create', 'delete']),
-            template=dict(default=None, required=True),
-            disable_rollback=dict(default=False, type='bool')
-        )
+    argument_spec = openstack_full_argument_spec(
+        name                 = dict(required=True),
+        template_parameters  = dict(required=False, type='dict', default={}),
+        template             = dict(default=None, required=True),
+        disable_rollback     = dict(default=False, type='bool')
     )
 
     module = AnsibleModule(
@@ -150,14 +131,14 @@ def main():
     heat = Client('1', endpoint=heat_url, token=auth_token)
     result = {}
 
-    action = module.params['action']
-    stack_name = module.params['stack_name']
+    state = module.params['state']
+    name = module.params['name']
 
-    if action == 'create':
+    if state == 'present':
         tpl_files, template = template_utils.get_template_contents(module.params['template'])
 
         fields = {
-            'stack_name': stack_name,
+            'stack_name': name,
             'disable_rollback': module.params['disable_rollback'],
             'parameters': utils.format_parameters(module.params['template_parameters']),
             'template': template,
@@ -167,16 +148,16 @@ def main():
             heat.stacks.create(**fields)
         except Exception, err:
             module.fail_json(msg=err.message)
-        result = stack_operation(heat, stack_name, action)
+        result = stack_operation(heat, stack_name, state)
 
-    if action == 'delete':
-        fields = {'stack_id': stack_name}
+    if state == 'absent':
+        fields = {'stack_id': name}
         try:
             heat.stacks.delete(**fields)
         except Exception, err:
             if "not be found" not in err.message:
                 module.fail_json(msg=err.message)
-        result = stack_operation(heat, stack_name, action)
+        result = stack_operation(heat, name, state)
 
     module.exit_json(**result)
 
