@@ -29,11 +29,6 @@ try:
 except ImportError:
     HAS_SHADE = False
 
-from novaclient.v1_1 import client as nova_client
-from novaclient.v1_1 import floating_ips 
-from novaclient import exceptions
-from novaclient import utils
-
 
 DOCUMENTATION = '''
 ---
