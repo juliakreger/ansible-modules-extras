@@ -1,5 +1,5 @@
 #!/usr/bin/python
-#coding: utf-8 -*-
+# coding: utf-8 -*-
 
 # Copyright (c) 2014 Hewlett-Packard Development Company, L.P.
 # Copyright (c) 2013, Benno Joy <benno@ansible.com>
@@ -18,9 +18,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this software.  If not, see <http://www.gnu.org/licenses/>.
 
-import operator
-import os
-import time
 
 try:
     import shade
@@ -55,20 +52,28 @@ options:
      default: None
    image_exclude:
      description:
-        - Text to use to filter image names, for the case, such as HP, where there are multiple image names matching the common identifying portions. image_exclude is a negative match filter - it is text that may not exist in the image name. Defaults to "(deprecated)"
+        - Text to use to filter image names, for the case, such as HP, where
+          there are multiple image names matching the common identifying
+          portions. image_exclude is a negative match filter - it is text that
+          may not exist in the image name. Defaults to "(deprecated)"
    flavor:
      description:
-        - The name or id of the flavor in which the new instance has to be created. Mutually exclusive with flavor_ram
+        - The name or id of the flavor in which the new instance has to be
+          created. Mutually exclusive with flavor_ram
      required: false
      default: 1
    flavor_ram:
      description:
-        - The minimum amount of ram in MB that the flavor in which the new instance has to be created must have. Mutually exclusive with flavor
+        - The minimum amount of ram in MB that the flavor in which the new
+          instance has to be created must have. Mutually exclusive with flavor.
      required: false
      default: 1
    flavor_include:
      description:
-        - Text to use to filter flavor names, for the case, such as Rackspace, where there are multiple flavors that have the same ram count. flavor_include is a positive match filter - it must exist in the flavor name.
+        - Text to use to filter flavor names, for the case, such as Rackspace,
+          where there are multiple flavors that have the same ram count.
+          flavor_include is a positive match filter - it must exist in the
+          flavor name.
    key_name:
      description:
         - The key pair name to be used when creating a instance
@@ -81,7 +86,8 @@ options:
      default: None
    nics:
      description:
-        - A list of network id's to which the instance's interface should be attached
+        - A list of network id's to which the instance's interface should
+          be attached.
      required: false
      default: None
    public_ip:
@@ -101,7 +107,8 @@ options:
      default: None
    meta:
      description:
-        - A list of key value pairs that should be provided as a metadata to the new instance
+        - A list of key value pairs that should be provided as a metadata to
+          the new instance.
      required: false
      default: None
    wait:
@@ -111,7 +118,8 @@ options:
      default: 'yes'
    timeout:
      description:
-        - The amount of time the module should wait for the instance to get into active state
+        - The amount of time the module should wait for the instance to get
+          into active state.
      required: false
      default: 180
    config_drive:
@@ -137,7 +145,8 @@ requirements: ["shade"]
 '''
 
 EXAMPLES = '''
-# Creates a new instance and attaches to a network and passes metadata to the instance
+# Creates a new instance and attaches to a network and passes metadata to
+# the instance
 - os_server:
        state: present
        username: admin
@@ -154,7 +163,8 @@ EXAMPLES = '''
          hostname: test1
          group: uge_master
 
-# Creates a new instance in HP Cloud AE1 region availability zone az2 and automatically assigns a floating IP
+# Creates a new instance in HP Cloud AE1 region availability zone az2 and
+# automatically assigns a floating IP
 - name: launch a compute instance
   hosts: localhost
   tasks:
@@ -175,7 +185,8 @@ EXAMPLES = '''
       security_groups: default
       auto_floating_ip: yes
 
-# Creates a new instance in HP Cloud AE1 region availability zone az2 and assigns a pre-known floating IP
+# Creates a new instance in HP Cloud AE1 region availability zone az2
+# and assigns a pre-known floating IP
 - name: launch a compute instance
   hosts: localhost
   tasks:
@@ -196,7 +207,8 @@ EXAMPLES = '''
       floating-ips:
         - 12.34.56.79
 
-# Creates a new instance with 4G of RAM on Ubuntu Trusty, ignoring deprecated images
+# Creates a new instance with 4G of RAM on Ubuntu Trusty, ignoring
+# deprecated images
 - name: launch a compute instance
   hosts: localhost
   tasks:
@@ -213,7 +225,8 @@ EXAMPLES = '''
       image_exclude: deprecated
       flavor_ram: 4096
 
-# Creates a new instance with 4G of RAM on Ubuntu Trusty on a Rackspace Performance node in DFW
+# Creates a new instance with 4G of RAM on Ubuntu Trusty on a Rackspace
+# Performance node in DFW
 - name: launch a compute instance
   hosts: localhost
   tasks:
@@ -243,17 +256,22 @@ def _delete_server(module, cloud):
             module.params['name'], wait=module.params['wait'],
             timeout=module.params['timeout'])
     except Exception as e:
-        module.fail_json( msg = "Error in deleting vm: %s" % e.message)
+        module.fail_json(msg="Error in deleting vm: %s" % e.message)
     module.exit_json(changed=True, result='deleted')
 
 
 def _create_server(module, cloud):
+    flavor = module.params['flavor']
+    flavor_ram = module.params['flavor_ram']
+    flavor_include = module.params['flavor_include']
+
     image_id = cloud.get_image_id(
         module.params['image'], module.params['image_exclude'])
-    flavor_id = cloud.get_flavor_id(
-        name_or_id=module.params['flavor'],
-        ram=module.params['flavor_ram'],
-        include=module.params['flavor_include'])
+
+    if flavor:
+        flavor_id = cloud.get_flavor(flavor)
+    else:
+        flavor_id = cloud.get_flavor_by_ram(flavor_ram, flavor_include)
 
     bootkwargs = dict(
         name=module.params['name'],
@@ -264,7 +282,7 @@ def _create_server(module, cloud):
         security_groups=module.params['security_groups'].split(','),
         userdata=module.params['userdata'],
         config_drive=module.params['config_drive'],
-    }
+    )
     for optional_param in ('region_name', 'key_name', 'availability_zone'):
         if module.params[optional_param]:
             bootkwargs[optional_param] = module.params[optional_param]
@@ -276,7 +294,7 @@ def _create_server(module, cloud):
         root_volume=module.params['root_volume'],
         terminate_volume=module.params['terminate_volume'],
         wait=module.params['wait'], timeout=module.params['timeout'],
-        **bootkwargs,
+        **bootkwargs
     )
 
     _exit_hostvars(module, cloud, server)
@@ -333,13 +351,14 @@ def _get_server_state(module, cloud):
     if server and state == 'present':
         if server.status != 'ACTIVE':
             module.fail_json(
-                msg="The instance is available but not Active state:" + server.status)
+                msg="The instance is available but not Active state: "
+                    + server.status)
         (ip_changed, server) = _check_floating_ips(module, cloud, server)
         _exit_hostvars(module, cloud, server, ip_changed)
     if server and state == 'absent':
         return True
     if state == 'absent':
-        module.exit_json(changed = False, result = "not present")
+        module.exit_json(changed=False, result="not present")
     return True
 
 
@@ -366,10 +385,10 @@ def main():
     )
     module_kwargs = openstack_module_kwargs(
         mutually_exclusive=[
-            ['auto_floating_ip','floating_ips'],
-            ['auto_floating_ip','floating_ip_pools'],
-            ['floating_ips','floating_ip_pools'],
-            ['flavor','flavor_ram'],
+            ['auto_floating_ip', 'floating_ips'],
+            ['auto_floating_ip', 'floating_ip_pools'],
+            ['floating_ips', 'floating_ip_pools'],
+            ['flavor', 'flavor_ram'],
         ],
     )
     module = AnsibleModule(argument_spec, **module_kwargs)
@@ -378,12 +397,20 @@ def main():
         module.fail_json(msg='shade is required for this module')
 
     state = module.params['state']
-    image_id = module.params['image_id']
-    image_name = module.params['image_name']
+    image = module.params['image']
+    flavor = module.params['flavor']
+    flavor_ram = module.params['flavor_ram']
 
-    if state == 'present' and not image_id and not image_name:
-        module.fail_json(
-            msg="Parameter 'image_id' or `image_name` is required if state == 'present'")
+    if state == 'present':
+        if not image:
+            module.fail_json(
+                msg="Parameter 'image' is required if state == 'present'"
+            )
+        if not flavor and not flavor_ram:
+            module.fail_json(
+                msg="Parameter 'flavor' or 'flavor_ram' is required "
+                    "if state == 'present'"
+            )
 
     try:
         cloud = shade.openstack_cloud(**module.params)
@@ -401,4 +428,3 @@ def main():
 from ansible.module_utils.basic import *
 from ansible.module_utils.openstack import *
 main()
-
