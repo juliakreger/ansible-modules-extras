@@ -83,20 +83,20 @@ def main():
     public_key = module.params['public_key']
 
     try:
-        nova = shade.openstack_cloud(**module.params)
+        cloud = shade.openstack_cloud(**module.params)
 
         if state == 'present':
-            for key in nova.list_keypairs():
+            for key in cloud.list_keypairs():
                 if key.name == name:
                     if public_key and (public_key != key.public_key):
                         module.fail_json(
-                            msg="Name %s present but key hash not the same "
-                                "as offered. Delete key first." % key['name']
+                            msg="Key name %s present but key hash not the same"
+                                " as offered. Delete key first." % key.name
                         )
                     else:
                         module.exit_json(changed=False, result="Key present")
             try:
-                key = nova.create_keypair(name, public_key)
+                key = cloud.create_keypair(name, public_key)
             except Exception, e:
                 module.exit_json(
                     msg="Error in creating the keypair: %s" % e.message
@@ -106,10 +106,10 @@ def main():
             module.exit_json(changed=True, key=None)
 
         elif state == 'absent':
-            for key in nova.list_keypairs():
+            for key in cloud.list_keypairs():
                 if key.name == name:
                     try:
-                        nova.delete_keypair(name)
+                        cloud.delete_keypair(name)
                     except Exception, e:
                         module.fail_json(
                             msg="Keypair deletion has failed: %s" % e.message
