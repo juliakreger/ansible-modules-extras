@@ -115,7 +115,7 @@ def _absent_volume(module, cloud):
 
     try:
         cloud.delete_volume(
-            name=module.params['display_name'],
+            name_or_id=module.params['display_name'],
             wait=module.params['wait'],
             timeout=module.params['timeout'])
     except shade.OpenStackCloudTimeout:
