@@ -116,7 +116,7 @@ def _present_volume(cloud, nova, module, server, volume):
                     result='Volume already attached',
                     attachments=volume.attachments)
     except Exception as e:
-        module.fail_json(msg='Error processing volume:%s' % str(e))
+        module.fail_json(msg='Error processing volume:%s' % e)
 
     if volume.status != 'available':
         module.fail_json(msg='Cannot attach volume, not available')
@@ -125,7 +125,7 @@ def _present_volume(cloud, nova, module, server, volume):
                                           volume.id,
                                           module.params['device'])
     except Exception as e:
-        module.fail_json(msg='Cannot add volume to server:%s' % str(n))
+        module.fail_json(msg='Cannot add volume to server: %s' % str(e))
 
     if module.params['wait']:
         expires = float(module.params['timeout']) + time.time()
@@ -159,7 +159,7 @@ def _absent_volume(cloud, nova, module, server, volume):
         if module.params['wait']:
             _wait_for_detach(cloud, module)
     except Exception as e:
-        module.fail_json(msg='Error removing volume from server:%s' % str(e))
+        module.fail_json(msg='Error removing volume from server:%s' % e)
     module.exit_json(changed=True, result='Detached volume from server')
 
 

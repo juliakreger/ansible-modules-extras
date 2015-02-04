@@ -15,15 +15,12 @@
 # You should have received a copy of the GNU General Public License
 # along with this software.  If not, see <http://www.gnu.org/licenses/>.
 
-import time
 
 try:
     import shade
     HAS_SHADE = True
 except ImportError:
     HAS_SHADE = False
-
-from cinderclient import exceptions as cinder_exc
 
 
 DOCUMENTATION = '''
@@ -90,6 +87,7 @@ EXAMPLES = '''
       display_name: test_volume
 '''
 
+
 def _present_volume(module, cloud):
     if cloud.volume_exists(module.params['display_name']):
         v = cloud.get_volume(module.params['display_name'])
@@ -117,8 +115,9 @@ def _absent_volume(module, cloud):
 
     try:
         cloud.delete_volume(
-            module.params['display_name'],
-            module.params['wait'], module.params['timeout'])
+            name=module.params['display_name'],
+            wait=module.params['wait'],
+            timeout=module.params['timeout'])
     except shade.OpenStackCloudTimeout:
         module.exit_json(changed=False, result="Volume deletion timed-out")
     module.exit_json(changed=True, result='Volume Deleted')
@@ -134,7 +133,7 @@ def main():
         snapshot_id=dict(default=None),
     )
     module_kwargs = openstack_module_kwargs(
-        mutually_exclusive = [
+        mutually_exclusive=[
             ['image', 'snapshot_id'],
         ],
     )
