@@ -39,7 +39,7 @@ options:
    size:
      description:
         - Size of volume in GB
-     requried: true
+     required: only when state is 'present'
      default: None
    display_name:
      description:
@@ -125,7 +125,7 @@ def _absent_volume(module, cloud):
 
 def main():
     argument_spec = openstack_full_argument_spec(
-        size=dict(required=True),
+        size=dict(default=None),
         volume_type=dict(default=None),
         display_name=dict(required=True, aliases=['name']),
         display_description=dict(default=None, aliases=['description']),
@@ -142,11 +142,16 @@ def main():
     if not HAS_SHADE:
         module.fail_json(msg='shade is required for this module')
 
+    state = module.params['state']
+
+    if state == 'present' and not module.params['size']:
+        module.fail_json(msg="Size is required when state is 'present'")
+
     try:
         cloud = shade.openstack_cloud(**module.params)
-        if module.params['state'] == 'present':
+        if state == 'present':
             _present_volume(module, cloud)
-        if module.params['state'] == 'absent':
+        if state == 'absent':
             _absent_volume(module, cloud)
     except shade.OpenStackCloudException as e:
         module.fail_json(msg=e.message)
