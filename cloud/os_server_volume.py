@@ -100,7 +100,7 @@ def _check_device_attachment(volume, device, server_id):
 def _present_volume(cloud, nova, module, server, volume):
 
     try:
-        if _check_server_attachments(volume, server.id)
+        if _check_server_attachments(volume, server.id):
             # Attached. Now, do we care about device?
             if (module.params['device'] and
                 not _check_device_attachment(
