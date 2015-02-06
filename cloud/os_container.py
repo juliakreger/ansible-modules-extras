@@ -71,7 +71,7 @@ def main():
     access = module.params['access']
 
     try:
-        cloud = shade.openstack_cloud(**openstack_auth(module))
+        cloud = shade.openstack_cloud(**module.params)
 
         container = cloud.get_container(name)
         if module.params['state'] == 'present':

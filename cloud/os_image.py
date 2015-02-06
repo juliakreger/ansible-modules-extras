@@ -197,7 +197,7 @@ def main():
             module.fail_json(msg="Either file or copy_from variable should be set to create the image")
 
     try:
-        cloud = shade.openstack_cloud(**openstack_auth(module))
+        cloud = shade.openstack_cloud(**module.params)
 
         changed = False
         image = cloud.get_image(name_or_id=module.params['name'])

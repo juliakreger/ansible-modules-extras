@@ -177,7 +177,7 @@ def main():
         module.fail_json(msg='shade is required for this module')
 
     try:
-        cloud = shade.openstack_cloud(**openstack_auth(module))
+        cloud = shade.openstack_cloud(**module.params)
         nova = cloud.nova_client
 
         server = cloud.get_server(module.params['server'])
