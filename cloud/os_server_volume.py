@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this software.  If not, see <http://www.gnu.org/licenses/>.
 
-import time
 
 try:
     import shade
@@ -74,94 +73,6 @@ EXAMPLES = '''
       device: /dev/vdb
 '''
 
-def _wait_for_detach(cloud, module):
-    expires = float(module.params['timeout']) + time.time()
-    while time.time() < expires:
-        volume = cloud.get_volume(module.params['volume'], cache=False)
-        if volume.status == 'available':
-            break
-    return volume
-
-
-def _check_server_attachments(volume, server_id):
-    for attach in volume.attachments:
-        if server_id == attach['server_id']:
-            return True
-    return False
-
-
-def _check_device_attachment(volume, device, server_id):
-    for attach in volume.attachments:
-        if server_id == attach['server_id'] and device == attach['device']:
-            return True
-    return False
-
-
-def _present_volume(cloud, nova, module, server, volume):
-
-    try:
-        if _check_server_attachments(volume, server.id):
-            # Attached. Now, do we care about device?
-            if (module.params['device'] and
-                not _check_device_attachment(
-                    volume, modules.params['device'],
-                    server.id)):
-                nova.volumes.delete_server_volume(server.id, volume.id)
-                volume = _wait_for_detach(cloud, module)
-            else:
-                server = cloud.get_server(module.params['server_id'])
-                hostvars = meta.get_hostvars_from_server(cloud, server)
-                module.exit_json(
-                    changed=False,
-                    result='Volume already attached',
-                    attachments=volume.attachments)
-    except Exception as e:
-        module.fail_json(msg='Error processing volume:%s' % e)
-
-    if volume.status != 'available':
-        module.fail_json(msg='Cannot attach volume, not available')
-    try:
-        nova.volumes.create_server_volume(module.params['server_id'],
-                                          volume.id,
-                                          module.params['device'])
-    except Exception as e:
-        module.fail_json(msg='Cannot add volume to server: %s' % str(e))
-
-    if module.params['wait']:
-        expires = float(module.params['timeout']) + time.time()
-        attachment = None
-        while time.time() < expires:
-            volume = cloud.get_volume(volume.id, cache=False)
-            for attach in volume.attachments:
-                if attach['server_id'] == module.params['server_id']:
-                    attachment = attach
-                    break
-
-    if attachment:
-        server = cloud.get_server(module.params['server_id'])
-        hostvars = meta.get_hostvars_from_server(cloud, server)
-        module.exit_json(
-            changed=True, id=volume.id, attachments=volume.attachments,
-            openstack=hostvars,
-        )
-    module.fail_json(
-        msg='Adding volume {volume} to server {server} timed out'.format(
-            volume=volume.display_name, server=module.params['server_id']))
-
-
-def _absent_volume(cloud, nova, module, server, volume):
-
-    if not _check_server_attachments(volume, server.id):
-        module.exit_json(changed=False, msg='Volume is not attached to server')
-
-    try:
-        nova.volumes.delete_server_volume(server.id, volume.id)
-        if module.params['wait']:
-            _wait_for_detach(cloud, module)
-    except Exception as e:
-        module.fail_json(msg='Error removing volume from server:%s' % e)
-    module.exit_json(changed=True, result='Detached volume from server')
-
 
 def main():
     argument_spec = openstack_full_argument_spec(
@@ -169,26 +80,45 @@ def main():
         volume=dict(required=True),
         device=dict(default=None),
     )
-    module_kwargs = openstack_module_kwargs()
 
+    module_kwargs = openstack_module_kwargs()
     module = AnsibleModule(argument_spec, **module_kwargs)
 
     if not HAS_SHADE:
         module.fail_json(msg='shade is required for this module')
 
+    state = module.params['state']
+    wait = module.params['wait']
+    timeout = module.params['timeout']
+
     try:
         cloud = shade.openstack_cloud(**module.params)
-        nova = cloud.nova_client
-
         server = cloud.get_server(module.params['server'])
         volume = cloud.get_volume(module.params['volume'])
 
-        if module.params['state'] == 'present':
-            _present_volume(cloud, nova, module, server, volume)
-        if module.params['state'] == 'absent':
-            _absent_volume(cloud, nova, module, server, volume)
+        if state == 'present':
+            cloud.attach_volume(server, volume, module.params['device'],
+                                wait=wait, timeout=timeout)
 
-    except shade.OpenStackCloudException as e:
+            server = cloud.get_server(module.params['server'])  # refresh
+            volume = cloud.get_volume(module.params['volume'])  # refresh
+            hostvars = meta.get_hostvars_from_server(cloud, server)
+
+            module.exit_json(
+                changed=True,
+                id=volume.id,
+                attachments=volume.attachments,
+                openstack=hostvars
+            )
+
+        elif state == 'absent':
+            cloud.detach_volume(server, volume, wait=wait, timeout=timeout)
+            module.exit_json(
+                changed=True,
+                result='Detached volume from server'
+            )
+
+    except (shade.OpenStackCloudException, shade.OpenStackCloudTimeout) as e:
         module.fail_json(msg=e.message)
 
 # this is magic, see lib/ansible/module_utils/common.py
