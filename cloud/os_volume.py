@@ -90,9 +90,9 @@ EXAMPLES = '''
       display_name: test_volume
 '''
 
-def _present_volume(module, cinder, cloud):
-    if cloud.volume_exists(module.param['display_name']):
-        v = cloud.get_volume(module.param['display_name'])
+def _present_volume(module, cloud):
+    if cloud.volume_exists(module.params['display_name']):
+        v = cloud.get_volume(module.params['display_name'])
         module.exit_json(changed=False, id=v.id, info=v._info)
 
     volume_args = dict(
@@ -107,9 +107,9 @@ def _present_volume(module, cinder, cloud):
         image_id = cloud.get_image_id(module.params['image'])
         volume_args['imageRef'] = image_id
 
-    volume = cloud.volume_create(
-        volume_args, wait=module.params['wait'],
-        timeout=module.params['timeout'])
+    volume = cloud.create_volume(
+        wait=module.params['wait'], timeout=module.params['timeout'],
+        **volume_args)
     module.exit_json(changed=True, id=volume.id, info=volume._info)
 
 
