@@ -75,7 +75,7 @@ def main():
     filename = module.params['file']
 
     try:
-        cloud = shade.openstack_cloud(**openstack_auth(module))
+        cloud = shade.openstack_cloud(**module.params)
 
         if not cloud.get_container(container):
             module.fail_json(msg='Container %s does not exist' % container)

@@ -100,7 +100,7 @@ def main():
         module.fail_json(msg='shade is required for this module')
 
     try:
-        cloud = shade.openstack_cloud(**openstack_auth(module))
+        cloud = shade.openstack_cloud(**module.params)
         neutron = cloud.neutron_client
 
 

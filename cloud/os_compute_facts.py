@@ -65,7 +65,7 @@ def main():
         module.fail_json(msg='shade is required for this module')
 
     try:
-        cloud = shade.openstack_cloud(**openstack_auth(module))
+        cloud = shade.openstack_cloud(**module.params)
         server = cloud.get_server(module.params['server'])
         hostvars = dict(openstack=meta.get_hostvars_from_server(
             cloud, server, mounts=module.params['mounts']))

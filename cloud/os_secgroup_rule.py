@@ -103,7 +103,7 @@ def main():
     module = AnsibleModule(argument_spec, **module_kwargs)
 
     try:
-        cloud = shade.openstack_cloud(**openstack_auth(module))
+        cloud = shade.openstack_cloud(**module.params)
         nova_client = cloud.nova_client
         changed = False
 
