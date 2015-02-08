@@ -26,42 +26,47 @@ except ImportError:
 DOCUMENTATION = '''
 ---
 module: os_object
-short_description: Create or Delete object objects from OpenStack
+short_description: Create or Delete object objects and containers from OpenStack
 extends_documentation_fragment: openstack
 description:
-   - Create or Delete object objects from OpenStack
+   - Create or Delete object objects and containers from OpenStack
 options:
-   state:
-     description:
-        - Indicate desired state of the resource
-     choices: ['present', 'absent']
-     default: present
-   name:
-     description:
-        - Name to be give to the object
-     required: true
    container:
      description:
         - The name of the container in which to create the object
      required: true
+   name:
+     description:
+        - Name to be give to the object. If omitted, operations will be on
+          the entire container
+     required: false
    file:
      description:
-        - Path to local file to be uploaded
-     required: true
+        - Path to local file to be uploaded.
+     required: false
+   container_access:
+     description:
+        - desired container access level.
+     required: false
+     choices: ['private', 'public']
+     default: private
 requirements: ["shade"]
 '''
 
 EXAMPLES = '''
 # Creates a object named 'fstab' in the 'config' container
 - os_object: state=present name=fstab container=config file=/etc/fstab
+
+# Deletes a container called config and all of its contents
+- os_object: state=absent container=config
 '''
 
 def main():
     argument_spec = openstack_full_argument_spec(
-        name=dict(required=True),
-        state=dict(default='present', choices=['absent', 'present']),
+        name=dict(required=False, default=None),
         container=dict(required=True),
-        file=dict(required=True),
+        file=dict(required=False, default=None),
+        container_access=dict(default='private', choices=['private', 'public']),
     )
     module_kwargs = openstack_module_kwargs()
     module = AnsibleModule(argument_spec, **module_kwargs)
@@ -73,21 +78,33 @@ def main():
     name  = module.params['name']
     container = module.params['container']
     filename = module.params['file']
+    access = module.params['container_access']
 
     try:
         cloud = shade.openstack_cloud(**module.params)
 
-        if not cloud.get_container(container):
-            module.fail_json(msg='Container %s does not exist' % container)
-
+        container = cloud.get_container(name)
         if module.params['state'] == 'present':
-            if cloud.is_object_stale(container, name, filename):
-                cloud.create_object(container, name, filename)
+            if not container:
+                container = cloud.create_container(name)
                 changed = True
+            if cloud.get_container_access(name) != access:
+                cloud.set_container_access(name, access)
+                changed = True
+            if name:
+                if cloud.is_object_stale(container, name, filename):
+                    cloud.create_object(container, name, filename)
+                    changed = True
         else:
-            if cloud.get_object_metadata(container, name):
-                cloud.delete_object(container, name)
-                changed= True
+            if container:
+                if name:
+                    if cloud.get_object_metadata(container, name):
+                      cloud.delete_object(container, name)
+                    changed= True
+                else:
+                    cloud.delete_container(name)
+                    changed= True
+
         module.exit_json(changed=changed, result="success")
     except shade.OpenStackCloudException as e:
         module.fail_json(msg=e.message)
