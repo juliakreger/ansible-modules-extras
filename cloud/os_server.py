@@ -86,8 +86,8 @@ options:
      default: None
    nics:
      description:
-        - A list of network id's to which the instance's interface should
-          be attached.
+        - A list of networks to which the instance's interface should
+          be attached. Networks may be referenced by net-id or net-name.
      required: false
      default: None
    public_ip:
@@ -159,6 +159,7 @@ EXAMPLES = '''
        flavor: 4
        nics:
          - net-id: 34605f38-e52a-25d2-b6ec-754a13ffb723
+         - net-name: another_network
        meta:
          hostname: test1
          group: uge_master
@@ -250,6 +251,21 @@ def _exit_hostvars(module, cloud, server, changed=True):
     module.exit_json(changed=changed, id=server.id, openstack=hostvars)
 
 
+def _network_args(module, cloud):
+    args = []
+    for net in module.params['nics']:
+        if net.get('net-id'):
+            args.append(net)
+        elif net.get('net-name'):
+            by_name = cloud.get_network(net['net-name'])
+            if not by_name:
+                module.fail_json(
+                    msg='Could not find network by net-name: %s' %
+                    net['net-name'])
+            args.append({'net-id': by_name['id']})
+    return args
+
+
 def _delete_server(module, cloud):
     try:
         cloud.delete_server(
@@ -273,11 +289,13 @@ def _create_server(module, cloud):
     else:
         flavor_id = cloud.get_flavor_by_ram(flavor_ram, flavor_include)
 
+    nics = _network_args(module, cloud)
+
     bootkwargs = dict(
         name=module.params['name'],
         image=image_id,
         flavor=flavor_id,
-        nics=module.params['nics'],
+        nics=nics,
         meta=module.params['meta'],
         security_groups=module.params['security_groups'].split(','),
         userdata=module.params['userdata'],
