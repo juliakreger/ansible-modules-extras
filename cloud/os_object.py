@@ -61,11 +61,40 @@ EXAMPLES = '''
 - os_object: state=absent container=config
 '''
 
+
+def process_object(
+        cloud_obj, container, name, filename, container_access, **kwargs):
+
+    changed = False
+    container_obj = cloud_obj.get_container(container)
+    if kwargs['state'] == 'present':
+        if not container_obj:
+            container_obj = cloud_obj.create_container(container)
+            changed = True
+        if cloud_obj.get_container_access(container) != container_access:
+            cloud_obj.set_container_access(container, container_access)
+            changed = True
+        if name:
+            if cloud_obj.is_object_stale(container, name, filename):
+                cloud_obj.create_object(container, name, filename)
+                changed = True
+    else:
+        if container_obj:
+            if name:
+                if cloud_obj.get_object_metadata(container, name):
+                  cloud_obj.delete_object(container, name)
+                changed= True
+            else:
+                cloud_obj.delete_container(container)
+                changed= True
+    return changed
+
+
 def main():
     argument_spec = openstack_full_argument_spec(
         name=dict(required=False, default=None),
         container=dict(required=True),
-        file=dict(required=False, default=None),
+        filename=dict(required=False, default=None),
         container_access=dict(default='private', choices=['private', 'public']),
     )
     module_kwargs = openstack_module_kwargs()
@@ -74,36 +103,10 @@ def main():
     if not HAS_SHADE:
         module.fail_json(msg='shade is required for this module')
 
-    changed = False
-    name  = module.params['name']
-    container = module.params['container']
-    filename = module.params['file']
-    access = module.params['container_access']
-
     try:
         cloud = shade.openstack_cloud(**module.params)
 
-        container = cloud.get_container(name)
-        if module.params['state'] == 'present':
-            if not container:
-                container = cloud.create_container(name)
-                changed = True
-            if cloud.get_container_access(name) != access:
-                cloud.set_container_access(name, access)
-                changed = True
-            if name:
-                if cloud.is_object_stale(container, name, filename):
-                    cloud.create_object(container, name, filename)
-                    changed = True
-        else:
-            if container:
-                if name:
-                    if cloud.get_object_metadata(container, name):
-                      cloud.delete_object(container, name)
-                    changed= True
-                else:
-                    cloud.delete_container(name)
-                    changed= True
+        changed = process_object(cloud, **module.params)
 
         module.exit_json(changed=changed, result="success")
     except shade.OpenStackCloudException as e:
