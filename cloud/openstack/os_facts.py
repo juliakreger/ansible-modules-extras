@@ -24,11 +24,11 @@ except ImportError:
 
 DOCUMENTATION = '''
 ---
-module: os_compute_facts
+module: os_server_facts
 short_description: Retrieve facts about a compute instance
 extends_documentation_fragment: openstack
 description:
-   - Retrieve facts about a compute instance from OpenStack.
+   - Retrieve facts about a server instance from OpenStack.
 notes:
    - Facts are placed in the C(openstack) variable.
 options:
@@ -44,12 +44,12 @@ requirements: ["shade"]
 '''
 
 EXAMPLES = '''
-# Fetch facts about an instance called vm1
-- os_compute:
+# Create a server, then inject facts about it:
+- os_server_facts:
     state: present
     cloud: rax-dfw
     name: vm1
-- debug: openstack
+- debug: var=openstack
 '''
 
 def main():

@@ -31,11 +31,6 @@ extends_documentation_fragment: openstack
 description:
    - Create or Remove cinder block storage volumes
 options:
-   state:
-     description:
-        - Indicate desired state of the resource
-     choices: ['present', 'absent']
-     default: present
    size:
      description:
         - Size of volume in GB
@@ -77,11 +72,7 @@ EXAMPLES = '''
   - name: create 40g test volume
     os_volume:
       state: present
-      username: username
-      password: Equality7-2521
-      project_name: username-project1
-      auth_url: https://region-b.geo-1.identity.hpcloudsvc.com:35357/v2.0/
-      region_name: region-b.geo-1
+      cloud: mordred
       availability_zone: az2
       size: 40
       display_name: test_volume

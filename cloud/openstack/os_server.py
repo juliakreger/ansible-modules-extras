@@ -35,11 +35,6 @@ extends_documentation_fragment: openstack
 description:
    - Create or Remove compute instances from OpenStack.
 options:
-   state:
-     description:
-        - Indicate desired state of the resource
-     choices: ['present', 'absent']
-     default: present
    name:
      description:
         - Name that has to be given to the instance
@@ -149,9 +144,11 @@ EXAMPLES = '''
 # the instance
 - os_server:
        state: present
-       username: admin
-       password: admin
-       project_name: admin
+       auth:
+         auth_url: https://region-b.geo-1.identity.hpcloudsvc.com:35357/v2.0/
+         username: admin
+         password: admin
+         project_name: admin
        name: vm1
        image: 4f905f38-e52a-43d2-b6ec-754a13ffb529
        key_name: ansible_key
@@ -172,11 +169,12 @@ EXAMPLES = '''
   - name: launch an instance
     os_server:
       state: present
-      username: username
-      password: Equality7-2521
-      project_name: username-project1
+      auth:
+        auth_url: https://region-b.geo-1.identity.hpcloudsvc.com:35357/v2.0/
+        username: username
+        password: Equality7-2521
+        project_name: username-project1
       name: vm1
-      auth_url: https://region-b.geo-1.identity.hpcloudsvc.com:35357/v2.0/
       region_name: region-b.geo-1
       availability_zone: az2
       image: 9302692b-b787-4b52-a3a6-daebb79cb498
@@ -186,7 +184,7 @@ EXAMPLES = '''
       security_groups: default
       auto_floating_ip: yes
 
-# Creates a new instance in HP Cloud AE1 region availability zone az2
+# Creates a new instance in named cloud mordred availability zone az2
 # and assigns a pre-known floating IP
 - name: launch a compute instance
   hosts: localhost
@@ -194,12 +192,8 @@ EXAMPLES = '''
   - name: launch an instance
     os_server:
       state: present
-      username: username
-      password: Equality7-2521
-      project_name: username-project1
+      cloud: mordred
       name: vm1
-      auth_url: https://region-b.geo-1.identity.hpcloudsvc.com:35357/v2.0/
-      region_name: region-b.geo-1
       availability_zone: az2
       image: 9302692b-b787-4b52-a3a6-daebb79cb498
       key_name: test
@@ -217,29 +211,21 @@ EXAMPLES = '''
     os_server:
       name: vm1
       state: present
-      username: username
-      password: Equality7-2521
-      project_name: username-project1
-      auth_url: https://region-b.geo-1.identity.hpcloudsvc.com:35357/v2.0/
+      cloud: mordred
       region_name: region-b.geo-1
       image: Ubuntu Server 14.04
       image_exclude: deprecated
       flavor_ram: 4096
 
-# Creates a new instance with 4G of RAM on Ubuntu Trusty on a Rackspace
-# Performance node in DFW
+# Creates a new instance with 4G of RAM on Ubuntu Trusty on a Performance node
 - name: launch a compute instance
   hosts: localhost
   tasks:
   - name: launch an instance
     os_server:
       name: vm1
+      cloud: rax-dfw
       state: present
-      username: username
-      password: Equality7-2521
-      project_name: username-project1
-      auth_url: https://identity.api.rackspacecloud.com/v2.0/
-      region_name: DFW
       image: Ubuntu 14.04 LTS (Trusty Tahr) (PVHVM)
       flavor_ram: 4096
       flavor_include: Performance

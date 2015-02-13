@@ -33,11 +33,6 @@ extends_documentation_fragment: openstack
 description:
    - Add or Remove key pair from OpenStack
 options:
-   state:
-     description:
-        - Indicate desired state of the resource
-     choices: ['present', 'absent']
-     default: present
    name:
      description:
         - Name that has to be given to the key pair
@@ -59,14 +54,16 @@ requirements: ["shade"]
 EXAMPLES = '''
 # Creates a key pair with the running users public key
 - os_keypair:
-      state=present
-      name=ansible_key
-      public_key={{ lookup('file','~/.ssh/id_rsa.pub') }}
+      cloud: mordred
+      state: present
+      name: ansible_key
+      public_key: "{{ lookup('file','~/.ssh/id_rsa.pub') }}"
 
 # Creates a new key pair and the private key returned after the run.
 - os_keypair:
-      state=present
-      name=ansible_key
+      cloud: rax-dfw
+      state: present
+      name: ansible_key
 '''
 
 

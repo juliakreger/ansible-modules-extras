@@ -32,11 +32,6 @@ extends_documentation_fragment: openstack
 description:
    - Add or Remove a floating IP to an instance
 options:
-   state:
-     description:
-        - Indicate desired state of the resource
-     choices: ['present', 'absent']
-     default: present
    server:
      description:
         - The name or ID of the instance to which the IP address
@@ -62,10 +57,11 @@ requirements: ["shade"]
 EXAMPLES = '''
 # Assign a floating ip to the instance from an external network
 - os_floating_ip:
-     state=present
-     server=vm1
-     network_name=external_network
-     internal_network_name=internal_network
+     cloud: mordred
+     state: present
+     server: vm1
+     network_name: external_network
+     internal_network_name: internal_network
 '''
 
 

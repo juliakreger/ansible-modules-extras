@@ -25,20 +25,19 @@ except ImportError:
 DOCUMENTATION = '''
 ---
 module: os_secgroup
-short_description: Add/Delete Nova security groups from an OpenStack cloud.
+short_description: Add/Delete security groups from an OpenStack cloud.
 extends_documentation_fragment: openstack
 description:
    - Add or Remove security groups from an OpenStack cloud.
 options:
-   state:
-     description:
-        - Indicate desired state of the resource
-     choices: ['present', 'absent']
-     default: present
    name:
      description:
         - Name that has to be given to the security group
      required: true
+   description:
+     description:
+        - Long description of the purpose of the security group
+     required: false
      default: None
 
 requirements: ["shade"]
@@ -46,11 +45,8 @@ requirements: ["shade"]
 
 EXAMPLES = '''
 # Create a security group
-- os_secgroup:  username=admin
-                password=passme
-                project_name=admin
-                name=group foo
-                description=security group for foo servers
+- os_secgroup: cloud=mordred name=foo
+               description=security group for foo servers
 '''
 
 

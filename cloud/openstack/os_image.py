@@ -31,11 +31,6 @@ extends_documentation_fragment: openstack
 description:
    - Add or Remove images from the OpenStack Image Repository
 options:
-   state:
-     description:
-        - Indicate desired state of the resource
-     choices: ['present', 'absent']
-     default: present
    name:
      description:
         - Name that has to be given to the image
@@ -104,19 +99,21 @@ requirements: ["shade"]
 
 EXAMPLES = '''
 # Upload an image from an HTTP URL
-- os_image: username=admin
-                password=passme
-                project_name=admin
-                name=cirros
-                container_format=bare
-                disk_format=qcow2
-                state=present
-                copy_from=http:launchpad.net/cirros/trunk/0.3.0/+download/cirros-0.3.0-x86_64-disk.img
-                kernel=cirros-vmlinuz
-                ramdisk=cirros-initrd
-                properties:
-                    cpu_arch=x86_64
-                    distro=ubuntu
+- os_image:
+    auth:
+      username: admin
+      password: passme
+      project_name: admin
+    name: cirros
+    container_format: bare
+    disk_format: qcow2
+    state: present
+    copy_from: http:launchpad.net/cirros/trunk/0.3.0/+download/cirros-0.3.0-x86_64-disk.img
+    kernel: cirros-vmlinuz
+    ramdisk: cirros-initrd
+    properties:
+      cpu_arch: x86_64
+      distro: ubuntu
 '''
 
 import time

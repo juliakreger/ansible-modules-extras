@@ -63,11 +63,7 @@ EXAMPLES = '''
   - name: attach volume to host
     os_server_volume:
       state: present
-      username: admin
-      password: admin
-      project_name: admin
-      auth_url: https://region-b.geo-1.identity.hpcloudsvc.com:35357/v2.0/
-      region_name: region-b.geo-1
+      cloud: mordred
       server: Mysql-server
       volume: mysql-data
       device: /dev/vdb
