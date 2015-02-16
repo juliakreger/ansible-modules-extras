@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this software.  If not, see <http://www.gnu.org/licenses/>.
 
+#TODO(mordred): we need to support "location"(v1) and "locations"(v2)
 try:
     import shade
     HAS_SHADE = True
@@ -66,19 +67,9 @@ options:
         - Whether the image can be accessed publicly. Note that publicizing an image requires admin role by default.
      required: false
      default: 'yes'
-   copy_from:
+   filename:
      description:
-        - A url from where the image can be downloaded, mutually exclusive with file parameter
-     required: false
-     default: None
-   timeout:
-     description:
-        - The time to wait for the image process to complete in seconds
-     required: false
-     default: 180
-   file:
-     description:
-        - The path to the file which has to be uploaded, mutually exclusive with copy_from
+        - The path to the file which has to be uploaded
      required: false
      default: None
    ramdisk:
@@ -108,7 +99,7 @@ EXAMPLES = '''
     container_format: bare
     disk_format: qcow2
     state: present
-    copy_from: http:launchpad.net/cirros/trunk/0.3.0/+download/cirros-0.3.0-x86_64-disk.img
+    filename: cirros-0.3.0-x86_64-disk.img
     kernel: cirros-vmlinuz
     ramdisk: cirros-initrd
     properties:
@@ -117,34 +108,6 @@ EXAMPLES = '''
 '''
 
 import time
-
-
-def _glance_image_create(module, params, client):
-    kwargs = {
-                'name':             params.get('name'),
-                'disk_format':      params.get('disk_format'),
-                'container_format': params.get('container_format'),
-                'owner':            params.get('owner'),
-                'is_public':        params.get('is_public'),
-                'copy_from':        params.get('copy_from'),
-    }
-    try:
-        timeout = params.get('timeout')
-        expire = time.time() + timeout
-        image = client.images.create(**kwargs)
-        if not params['copy_from']:
-            image.update(data=open(params['file'], 'rb'))
-        while time.time() < expire:
-            image = client.images.get(image.id)
-            if image.status == 'active':
-                break
-            time.sleep(5)
-    except Exception, e:
-        module.fail_json(msg="Error in creating image: %s" % type(e))
-    if image.status == 'active':
-        return image
-    else:
-        module.fail_json(msg=" The module timed out, please check manually " + image.status)
 
 
 def _glance_delete_image(module, params, client):
@@ -157,14 +120,6 @@ def _glance_delete_image(module, params, client):
     module.exit_json(changed=True, result="Deleted")
 
 
-def _glance_update_image_properties(module, properties, image):
-    try:
-        image.update(properties=properties)
-    except Exception, e:
-        module.fail_json(msg="Failed to update image properties for %s: %s" %
-                         (image.id, e.message))
-
-
 def main():
 
     argument_spec = openstack_full_argument_spec(
@@ -175,23 +130,16 @@ def main():
         min_disk          = dict(default=None),
         min_ram           = dict(default=None),
         is_public         = dict(default=False),
-        copy_from         = dict(default= None),
-        file              = dict(default=None),
+        filename          = dict(default=None),
         ramdisk           = dict(default=None),
         kernel            = dict(default=None),
         properties        = dict(default=None),
     )
-    module_kwargs = openstack_module_kwargs(
-        mutually_exclusive = [['file','copy_from']],
-    )
+    module_kwargs = openstack_module_kwargs()
     module = AnsibleModule(argument_spec, **module_kwargs)
 
     if not HAS_SHADE:
         module.fail_json(msg='shade is required for this module')
-
-    if module.params['state'] == 'present':
-        if not module.params['file'] and not module.params['copy_from']:
-            module.fail_json(msg="Either file or copy_from variable should be set to create the image")
 
     try:
         cloud = shade.openstack_cloud(**module.params)
@@ -201,26 +149,24 @@ def main():
 
         if module.params['state'] == 'present':
             if not image:
-                image = _glance_image_create(module, module.params, cloud.glance_client)
+                result = cloud.create_image(
+                    name=module.params['name'],
+                    filename=module.params['filename'],
+                    disk_format=module.params['disk_format'],
+                    container_format=module.params['container_format'],
+                    wait=module.params['wait'],
+                    timeout=module.params['timeout']
+                )
                 changed = True
+                if not module.params['wait']:
+                    module.exit_json(changed=changed, result=result)
+                image = cloud.get_image(name_or_id=result['id'])
 
-        img_props = {}
-        for attr in ['ramdisk', 'kernel']:
-            if module.params[attr]:
-                other_image_id = cloud.get_image_id(module.params[attr])
-                if image.properties.get('%s_id' % attr) != other_image_id:
-                    spec = '%s_id' % attr
-                    img_props[spec] = other_image_id
-
-        properties = module.params['properties']
-        if properties:
-            for k, v in properties.iteritems():
-                if image.properties.get(k) != v:
-                    img_props[k] = v
-
-        if img_props:
-            changed=True
-            _glance_update_image_properties(module, img_props, image)
+        cloud.update_image_properties(
+            image=image,
+            kernel=module.params['kernel'],
+            ramdisk=module.params['ramdisk'],
+            **module.params['properties'])
 
         if module.params['state'] == 'absent':
             if not image:
@@ -232,7 +178,7 @@ def main():
         module.exit_json(changed=changed, id=image.id, result="success")
 
     except shade.OpenStackCloudException as e:
-        module.fail_json(msg=e.message)
+        module.fail_json(msg=e.message, extra_data=e.extra_data)
 
 # this is magic, see lib/ansible/module_common.py
 from ansible.module_utils.basic import *
