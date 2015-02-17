@@ -133,7 +133,7 @@ def main():
         filename          = dict(default=None),
         ramdisk           = dict(default=None),
         kernel            = dict(default=None),
-        properties        = dict(default=None),
+        properties        = dict(default={}),
     )
     module_kwargs = openstack_module_kwargs()
     module = AnsibleModule(argument_spec, **module_kwargs)
