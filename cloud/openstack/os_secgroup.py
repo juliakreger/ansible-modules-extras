@@ -39,6 +39,11 @@ options:
         - Long description of the purpose of the security group
      required: false
      default: None
+   state:
+     description:
+       - Should the resource be present or absent.
+     choices: [present, absent]
+     default: present
 
 requirements: ["shade"]
 '''
@@ -64,6 +69,7 @@ def main():
     argument_spec = openstack_full_argument_spec(
         name              = dict(required=True),
         description       = dict(default=None),
+        state             = dict(default='present', choices=['absent', 'present']),
     )
     module_kwargs = openstack_module_kwargs()
     module = AnsibleModule(argument_spec, **module_kwargs)

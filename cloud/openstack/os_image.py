@@ -86,6 +86,11 @@ options:
      description:
         - Additional properties to be associated with this image
 requirements: ["shade"]
+   state:
+     description:
+       - Should the resource be present or absent.
+     choices: [present, absent]
+     default: present
 '''
 
 EXAMPLES = '''
@@ -134,6 +139,7 @@ def main():
         ramdisk           = dict(default=None),
         kernel            = dict(default=None),
         properties        = dict(default={}),
+        state             = dict(default='present', choices=['absent', 'present']),
     )
     module_kwargs = openstack_module_kwargs()
     module = AnsibleModule(argument_spec, **module_kwargs)

@@ -48,6 +48,11 @@ options:
         - Path to local file containing ssh public key.  Mutually exclusive with public_key
     required: false
     default: None
+   state:
+     description:
+       - Should the resource be present or absent.
+     choices: [present, absent]
+     default: present
 requirements: ["shade"]
 '''
 
@@ -69,9 +74,10 @@ EXAMPLES = '''
 
 def main():
     argument_spec = openstack_full_argument_spec(
-        name=dict(required=True),
-        public_key=dict(default=None),
-        public_key_file=dict(default=None),
+        name            = dict(required=True),
+        public_key      = dict(default=None),
+        public_key_file = dict(default=None),
+        state           = dict(default='present', choices=['absent', 'present']),
     )
     module_kwargs = openstack_module_kwargs(
         mutually_exclusive=[['public_key', 'public_key_file']])

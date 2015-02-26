@@ -50,6 +50,11 @@ options:
      required: false
      choices: ['private', 'public']
      default: private
+   state:
+     description:
+       - Should the resource be present or absent.
+     choices: [present, absent]
+     default: present
 requirements: ["shade"]
 '''
 
@@ -96,6 +101,7 @@ def main():
         container=dict(required=True),
         filename=dict(required=False, default=None),
         container_access=dict(default='private', choices=['private', 'public']),
+        state=dict(default='present', choices=['absent', 'present']),
     )
     module_kwargs = openstack_module_kwargs()
     module = AnsibleModule(argument_spec, **module_kwargs)

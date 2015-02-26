@@ -51,6 +51,11 @@ options:
           Necessary when VM multiple networks.
      required: false
      default: None
+   state:
+     description:
+       - Should the resource be present or absent.
+     choices: [present, absent]
+     default: present
 requirements: ["shade"]
 '''
 
@@ -184,6 +189,7 @@ def main():
         server                = dict(required=True),
         network_name          = dict(required=True),
         internal_network_name = dict(default=None),
+        state                 = dict(default='present', choices=['absent', 'present']),
     )
 
     module_kwargs = openstack_module_kwargs()

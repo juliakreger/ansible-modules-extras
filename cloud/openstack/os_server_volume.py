@@ -52,6 +52,11 @@ options:
       - Device you want to attach
      required: false
      default: None
+   state:
+     description:
+       - Should the resource be present or absent.
+     choices: [present, absent]
+     default: present
 requirements: ["shade"]
 '''
 
@@ -75,6 +80,7 @@ def main():
         server=dict(required=True),
         volume=dict(required=True),
         device=dict(default=None),
+        state=dict(default='present', choices=['absent', 'present']),
     )
 
     module_kwargs = openstack_module_kwargs()

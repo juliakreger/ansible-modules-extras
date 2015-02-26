@@ -29,6 +29,12 @@ short_description: Retrieve an auth token
 extends_documentation_fragment: openstack
 description:
    - Retrieve an auth token from an OpenStack Cloud
+options:
+  state:
+    description:
+      - Should the resource be present or absent.
+    choices: [present, absent]
+    default: present
 requirements: ["shade"]
 '''
 
@@ -42,7 +48,9 @@ EXAMPLES = '''
 
 def main():
 
-    argument_spec = openstack_full_argument_spec()
+    argument_spec = openstack_full_argument_spec(
+        state=dict(default='present', choices=['absent', 'present']),
+    )
     module_kwargs = openstack_module_kwargs()
     module = AnsibleModule(argument_spec, **module_kwargs)
 
