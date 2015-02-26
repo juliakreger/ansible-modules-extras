@@ -47,6 +47,13 @@ options:
         - The name of the Ironic Driver to use with this node.
       required: true
       default: None
+    ironic_url:
+      description:
+        - If noauth mode is utilized, this is required to be set to the
+          endpoint URL for the Ironic API.  Use with "auth" and "auth_plugin"
+          settings set to None.
+      required: false
+      default: None
     driver_info:
       description:
         - Information for this server's driver. Will vary based on which
@@ -146,15 +153,26 @@ def _parse_driver_info(module):
 
 def main():
     argument_spec = openstack_full_argument_spec(
-        uuid=dict(required=True),
+        uuid=dict(required=False),
         driver=dict(required=True),
         driver_info=dict(type='dict', required=True),
         nics=dict(type='list', required=True),
         properties=dict(type='dict', default={}),
+        ironic_url=dict(required=False),
     )
     module_kwargs = openstack_module_kwargs()
     module = AnsibleModule(argument_spec, **module_kwargs)
 
+    if not HAS_SHADE:
+        module.fail_json(msg='shade is required for this module')
+    if (module.params['auth_plugin'] == 'None' and
+              module.params['ironic_url'] is None):
+         module.fail_json(msg="Authentication appears disabled, Please "
+                              "define an ironic_url parameter")
+
+    print(module.params['auth'])
+    if module.params['ironic_url']:
+        module.params['auth'] = module.params['ironic_url']
     try:
         cloud = shade.operator_cloud(**module.params)
         server = cloud.get_machine_by_uuid(module.params['uuid'])
