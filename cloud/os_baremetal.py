@@ -170,9 +170,8 @@ def main():
          module.fail_json(msg="Authentication appears disabled, Please "
                               "define an ironic_url parameter")
 
-    print(module.params['auth'])
-    if module.params['ironic_url']:
-        module.params['auth'] = module.params['ironic_url']
+    if module.params['ironic_url'] and module.params['auth_plugin'] == 'None':
+        module.params['auth'] = dict(endpoint=module.params['ironic_url'])
     try:
         cloud = shade.operator_cloud(**module.params)
         server = cloud.get_machine_by_uuid(module.params['uuid'])
