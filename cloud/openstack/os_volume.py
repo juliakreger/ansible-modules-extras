@@ -61,6 +61,11 @@ options:
        - Volume snapshot id to create from
      required: false
      default: None
+   state:
+     description:
+       - Should the resource be present or absent.
+     choices: [present, absent]
+     default: present
 requirements: ["shade"]
 '''
 
@@ -122,6 +127,7 @@ def main():
         display_description=dict(default=None, aliases=['description']),
         image=dict(default=None),
         snapshot_id=dict(default=None),
+        state=dict(default='present', choices=['absent', 'present']),
     )
     module_kwargs = openstack_module_kwargs(
         mutually_exclusive=[

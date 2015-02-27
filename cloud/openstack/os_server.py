@@ -136,6 +136,11 @@ options:
      description:
         - If true, delete volume when deleting instance (if booted from volume)
      default: false
+   state:
+     description:
+       - Should the resource be present or absent.
+     choices: [present, absent]
+     default: present
 requirements: ["shade"]
 '''
 
@@ -386,6 +391,7 @@ def main():
         floating_ip_pools               = dict(default=None),
         root_volume                     = dict(default=None),
         terminate_volume                = dict(default=False, type='bool'),
+        state                           = dict(default='present', choices=['absent', 'present']),
     )
     module_kwargs = openstack_module_kwargs(
         mutually_exclusive=[

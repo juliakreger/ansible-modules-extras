@@ -50,6 +50,11 @@ options:
    cidr:
       description:
         - Source IP address(es) in CIDR notation
+   state:
+     description:
+       - Should the resource be present or absent.
+     choices: [present, absent]
+     default: present
 
 requirements: ["shade"]
 '''
@@ -91,6 +96,7 @@ def main():
         from_port           = dict(required=True),
         to_port             = dict(required=True),
         cidr                = dict(required=True),
+        state               = dict(default='present', choices=['absent', 'present']),
     )
     module_kwargs = openstack_module_kwargs()
     module = AnsibleModule(argument_spec, **module_kwargs)
