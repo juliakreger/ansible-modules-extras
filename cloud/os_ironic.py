@@ -25,7 +25,7 @@ except ImportError:
 
 DOCUMENTATION = '''
 ---
-module: os_baremetal
+module: os_ironic
 short_description: Create/Delete Bare Metal Resources from OpenStack
 extends_documentation_fragment: openstack
 description:
@@ -104,7 +104,7 @@ requirements: ["shade"]
 
 EXAMPLES = '''
 # Enroll a node with some basic properties and driver info
-- os_baremetal:
+- os_ironic:
     cloud: "devstack"
     driver: "pxe_ipmitool"
     uuid: "a8cb6624-0d9f-4882-affc-046ebb96ec92"
