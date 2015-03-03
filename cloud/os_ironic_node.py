@@ -130,6 +130,7 @@ def main():
 
                 patch = _prepare_instance_info_patch(instance_info)
                 cloud.set_node_instance_info(uuid, patch)
+                cloud.verify_node(uuid)
                 cloud.activate_node(uuid, module.params['config_drive'])
                 # TODO: Add more error checking and a wait option.
                 module.exit_json(changed=False, result="node activated")
