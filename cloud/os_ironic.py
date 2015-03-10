@@ -22,7 +22,7 @@ try:
 except ImportError:
     HAS_SHADE = False
 
-
+# TODO FIX UUID/Add node support
 DOCUMENTATION = '''
 ---
 module: os_ironic
@@ -166,9 +166,9 @@ def main():
     if not HAS_SHADE:
         module.fail_json(msg='shade is required for this module')
     if (module.params['auth_plugin'] == 'None' and
-              module.params['ironic_url'] is None):
-         module.fail_json(msg="Authentication appears disabled, Please "
-                              "define an ironic_url parameter")
+            module.params['ironic_url'] is None):
+        module.fail_json(msg="Authentication appears disabled, Please "
+                             "define an ironic_url parameter")
 
     if module.params['ironic_url'] and module.params['auth_plugin'] == 'None':
         module.params['auth'] = dict(endpoint=module.params['ironic_url'])

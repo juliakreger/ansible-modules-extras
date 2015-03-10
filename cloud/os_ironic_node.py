@@ -49,7 +49,8 @@ options:
       default: None
     config_drive:
       description:
-        - A configdrive file or HTTP(S) URL that will be passed along to the node.
+        - A configdrive file or HTTP(S) URL that will be passed along to the
+          node.
       required: false
       default: None
     instance_info:
@@ -91,6 +92,7 @@ def _prepare_instance_info_patch(instance_info):
         'value': instance_info
     })
     return patch
+
 
 def main():
     argument_spec = openstack_full_argument_spec(
