@@ -70,7 +70,7 @@ requirements: ["shade"]
 '''
 
 EXAMPLES = '''
-# Enroll a node with some basic properties and driver info
+# Activate a node by booting an image with a configdrive attached
 os_ironic_node:
   cloud: "openstack"
   uuid: "d44666e1-35b3-4f6b-acb0-88ab7052da69"
