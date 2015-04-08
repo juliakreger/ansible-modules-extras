@@ -1,5 +1,4 @@
 #!/usr/bin/python
-n
 # coding: utf-8 -*-
 
 # (c) 2014, Hewlett-Packard Development Company, L.P.
