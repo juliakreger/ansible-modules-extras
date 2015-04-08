@@ -1,4 +1,5 @@
 #!/usr/bin/python
+n
 # coding: utf-8 -*-
 
 # (c) 2014, Hewlett-Packard Development Company, L.P.
@@ -55,13 +56,13 @@ options:
       default: None
     chassis_uuid:
       description:
-        - Associate the node with a pre-defined chassis. 
+        - Associate the node with a pre-defined chassis.
       required: false
       default: None
     ironic_url:
       description:
         - If noauth mode is utilized, this is required to be set to the
-          endpoint URL for the Ironic API.  Use with "auth" and "auth_plugin"
+          endpoint URL for the Ironic API.  Use with "auth" and "auth_type"
           settings set to None.
       required: false
       default: None
@@ -216,20 +217,24 @@ def main():
         properties=dict(type='dict', default={}),
         ironic_url=dict(required=False),
         chassis_uuid=dict(required=False),
-        skip_update_of_masked_password=dict(required=False, choices=BOOLEANS)
+        skip_update_of_masked_password=dict(required=False, choices=BOOLEANS),
+        state=dict(required=False, default='present')
     )
     module_kwargs = openstack_module_kwargs()
     module = AnsibleModule(argument_spec, **module_kwargs)
 
     if not HAS_SHADE:
         module.fail_json(msg='shade is required for this module')
-    if (module.params['auth_plugin'] == 'None' and
+    if (module.params['auth_type'] in [None, 'None'] and
             module.params['ironic_url'] is None):
-        module.fail_json(msg="Authentication appears disabled, Please "
-                             "define an ironic_url parameter")
+        module.fail_json(msg="Authentication appears to be disabled, "
+                             "Please define an ironic_url parameter")
 
-    if module.params['ironic_url'] and module.params['auth_plugin'] == 'None':
-        module.params['auth'] = dict(endpoint=module.params['ironic_url'])
+    if (module.params['ironic_url'] and
+            module.params['auth_type'] in [None, 'None']):
+        module.params['auth'] = dict(
+            endpoint=module.params['ironic_url']
+        )
 
     node_id = _choose_id_value(module)
 
